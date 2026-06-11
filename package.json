@@ -1,0 +1,39 @@
+{
+  "name": "alsace-arena-spike-tournament",
+  "version": "1.0.0",
+  "description": "Web application for the Spike Tournament at Alsace Arena",
+  "main": "index.js",
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "next lint"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/irmahs/alsace-arena-spike-tournament.git"
+  },
+  "keywords": [],
+  "author": "IrmaHS",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/irmahs/alsace-arena-spike-tournament/issues"
+  },
+  "homepage": "https://github.com/irmahs/alsace-arena-spike-tournament#readme",
+  "dependencies": {
+    "@supabase/ssr": "^0.10.3",
+    "@supabase/supabase-js": "^2.107.0",
+    "@tailwindcss/postcss": "^4.3.0",
+    "next": "^16.2.7",
+    "react": "^19.2.7",
+    "react-dom": "^19.2.7",
+    "tailwindcss": "^4.3.0"
+  },
+  "devDependencies": {
+    "@types/node": "^25.9.2",
+    "@types/react": "^19.2.17",
+    "eslint": "^9.39.4",
+    "eslint-config-next": "^16.2.7",
+    "typescript": "^6.0.3"
+  }
+}

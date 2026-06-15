@@ -1,44 +1,57 @@
 # Alsace Arena Spike Tournament
 
-A web application for tracking the standings of a monthly Valorant competition at Alsace Arena.
+**Live site:** https://alsace-arena-spike-tournament.vercel.app/
+
+A web application for tracking standings and match stats for a monthly Valorant competition at Alsace Arena.
 
 Built with **Next.js**, **Tailwind CSS**, and **Supabase**.
 
 ## What this app does
 
-- Displays a **public scoreboard** with ranked season totals.
-- Provides a **full scoreboard** with match-level breakdowns.
-- Shows **match details** for matches 1–8 and the championship match 9.
-- Supports **admin score entry**, roster management, and substitution logic.
-- Keeps score submission **admin-only** to prevent participant tampering.
-- Exposes only public profile fields in the UI; **legal names remain admin-only**.
+- Season leaderboard with per-season filtering via a season dropdown.
+- Match list with status (done / upcoming) and a sidebar for quick navigation.
+- Match detail page with aggregated stats across all 3 games.
+- Per-game stats page with individual player performance.
+- Scoring system based on in-game stats + bonuses + victories.
+
+## Scoring formula
+
+```
+Total = ACS + Kills + Assists + Eco + First bloods + Plants + Defuses
+      + (bonus count × 10)
+      − Deaths
+      + (victories × 50)
+```
+
+Bonuses are awarded per game for: first blood, least deaths, most assists, most plants, most defuses.
 
 ## Season structure
 
-- **9 matches** across the season.
-- Matches **1–8** are regular rounds with **3 games each**.
-- Each game score contributes to a participant's **match total**.
-- Match totals roll up to a **running season total**.
-- **Match 9** is the final event for the **top 10 players**.
-- Final roster is **locked after match 8**, with next-ranked substitutions if someone is unavailable.
+- **9 matches** per season, each with **3 games**.
+- Matches 1–8 are regular rounds; match 9 is the **final** for the top 10 players.
+- Final roster is locked after match 8, with next-ranked substitutions for absent players.
 
 ## Tech stack
 
-- **Next.js 16** (App Router, TypeScript)
+- **Next.js** (App Router, TypeScript)
 - **Tailwind CSS v4**
-- **Supabase** (database, auth, API) via `@supabase/ssr`
+- **Supabase** (PostgreSQL, auth, API) via `@supabase/ssr`
 
 ## Project structure
 
 ```
 src/
-  app/        — pages and layouts (routing only)
-  lib/
-    supabase/ — Supabase client factories (browser, server, middleware)
-  services/   — data access layer
-  types/      — TypeScript domain model
-misc/
-  TODO.md     — Kanban-style task board
+  app/                          — pages and layouts
+    page.tsx                    — season leaderboard
+    matches/[season]/[matchId]/ — match detail (all games combined)
+      [game]/                   — individual game stats
+  components/
+    NavLinks.tsx                — nav bar with season dropdown
+  constants/
+    scoring.ts                  — POINTS_PER_BONUS, POINTS_PER_WIN
+  lib/supabase/                 — Supabase client factories (browser, server, middleware)
+  services/                     — data access layer (matches, games, game stats)
+  types/                        — TypeScript domain model
 ```
 
 ## Getting started
@@ -50,17 +63,10 @@ misc/
 2. Create a `.env.local` file in the project root:
    ```env
    NEXT_PUBLIC_SUPABASE_URL=https://your-project-ref.supabase.co
-   NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=your-anon-public-key
+   NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=your-anon-key
    ```
 3. Start the development server:
    ```bash
    npm run dev
    ```
 4. Open [http://localhost:3000](http://localhost:3000).
-
-## Notes for developers
-
-- Keep score entry and roster updates restricted to authenticated admin users.
-- Never expose `legal_name` in public API responses.
-- Focus on data integrity before UI polish.
-- See `misc/TODO.md` for remaining tasks.

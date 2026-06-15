@@ -1,81 +1,33 @@
-# Project TODO (Kanban)
-
-## To do
-
-### Setup & Infrastructure
-
-- [ ] Create Supabase schema for:
-  - participants
-  - matches
-  - games
-  - scores
-  - match roster / availability
-
-### Core Features
-
-- [ ] Build the public player scoreboard view.
-- [ ] Build the full scoreboard with match-level breakdown.
-- [ ] Build the match listing for matches 1–8.
-- [ ] Add game detail views for matches 1–8 (3 games each).
-- [ ] Build the match 9 final view with top-10 roster display.
-- [ ] Implement score aggregation logic:
-  - [ ] game → match total
-  - [ ] match total → season total
-- [ ] Implement top-10 lock logic based on matches 1–8.
-- [ ] Add substitution logic for unavailable finalists.
-- [ ] Secure admin-only access for score entry and roster changes.
-
-### Privacy & Data Security
-
-- [ ] Ensure public APIs never expose participant legal names.
-- [ ] Store legal name in the database, but only return it through admin-protected endpoints.
-- [ ] Confirm that public UI/API responses expose only:
-  - display name
-  - in-game name
-  - Discord handle
-
-### Admin Experience
-
-- [ ] Add authenticated admin login.
-- [ ] Add admin dashboard for:
-  - entering and editing scores
-  - marking player availability / absence
-  - managing roster and match assignments
-- [ ] Add validation for score entry and roster changes.
-
-### UX & UI
-
-- [ ] Create clear navigation between public scoreboard, full scoreboard, match list, and final match.
-- [ ] Ensure mobile-responsive layout across views.
-- [ ] Add visual clarity for public vs admin sections.
-
-### Deployment
-
-- [ ] Choose hosting for the Next.js app.
-- [ ] Configure production Supabase environment variables.
-- [ ] Deploy the application to a public URL.
-
-## In progress
+# Project TODO
 
 ## Done
 
-- [x] Create Supabase account and database.
-- [x] Set up Supabase client with SSR support (`@supabase/ssr`).
-- [x] Configure environment variables (`NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`).
-- [x] Connect app to Supabase and verify live data from `ranks` table.
-- [x] Set up RLS policy for public read on `ranks`.
-- [x] Initialize Next.js project structure with clean architecture (services, lib, types).
-- [x] Add Tailwind CSS v4.
+- [x] Supabase setup (schema, RLS, SSR client, env vars)
+- [x] Next.js project structure (services, lib, types, constants)
+- [x] Navigation with season dropdown
+- [x] Match list with status (done / upcoming) and sidebar
+- [x] Match detail page — aggregated stats across all 3 games
+- [x] Per-game stats page with player performance table
+- [x] Scoring formula (ACS + K + A + Eco + FB + Pl. + Def. + bonuses − deaths + victories)
+- [x] Bonus icons + legend (first blood, least deaths, most assists, plants, defuses, victory)
+- [x] Season filtering on leaderboard
 
-## Backlog / Future
+## In progress
 
-- [ ] Add participant profile pages exposing public fields only.
-- [ ] Add a countdown or next-match reminder.
-- [ ] Add support for match history beyond the current season.
-- [ ] Add optional participant login for read-only personalized views.
+- [ ] Season leaderboard — player ranking table with cumulative points across all matches
+- [ ] Home page match progression display (games played count per match)
+- [ ] Final match (match 9) — top-10 roster display and substitution logic
+- [ ] UI / UX polish to align all views
 
-## Notes for the Developer
+## To do
 
-- Keep score entry strictly admin-only; participants should never self-submit.
-- Treat legal name as a sensitive field and gate it at the API/data layer.
-- Focus on data integrity first, then polish UI/UX afterward.
+- [ ] Match dates — display and manage scheduled dates per match
+- [ ] Admin section — authenticated stat entry, score editing, player availability
+- [ ] Simplify home page URL — `/?currentSeason=8&tab=1&matchId=1&matchSeason=8` has redundant params, should collapse to something like `/?season=8&match=1`
+- [x] Deployment — hosted on Vercel at https://alsace-arena-spike-tournament.vercel.app/
+
+## Backlog
+
+- [ ] Player profile pages
+- [ ] Mobile responsiveness
+- [ ] Match history across multiple seasons

@@ -1,15 +1,24 @@
-export type Participant = {
+export type RankRow = {
+  id: number;
+  rank_name: string;
+  rank_value: number | null;
+};
+
+export type Player = {
   id: string;
-  display_name: string;
+  username: string;
   in_game_name: string;
-  discord_handle: string;
-  // legal_name is intentionally absent — admin-only, never exposed to public endpoints
+  discord_name: string | null;
+  current_rank_id: number | null;
+  ranks: Pick<RankRow, 'rank_name' | 'rank_value'>[] | null;
 };
 
 export type Match = {
   id: number;
-  round: number; // 1–8 regular season, 9 = final
-  played_at: string | null;
+  match_number: number;
+  match_date: string | null;
+  is_final: boolean;
+  match_season: number | null;
 };
 
 export type Game = {
@@ -18,15 +27,48 @@ export type Game = {
   game_number: 1 | 2 | 3;
 };
 
-export type Score = {
-  id: number;
-  game_id: number;
-  participant_id: string;
-  points: number;
+export type GamePlayerStat = {
+  player_id: string;
+  username: string;
+  in_game_name: string;
+  acs: number;
+  kills: number;
+  deaths: number;
+  assists: number;
+  econ_rating: number;
+  first_bloods: number;
+  plants: number;
+  defuses: number;
+  win: boolean;
+  bonus_death: boolean;
+  bonus_assist: boolean;
+  bonus_fb: boolean;
+  bonus_plant: boolean;
+  bonus_defuse: boolean;
 };
 
-export type RankRow = {
+export type GameDetail = {
   id: number;
-  rank_name: string;
-  rank_value: number;
+  game_number: number;
+  players: GamePlayerStat[];
+};
+
+export type GameStat = {
+  id: number;
+  game_id: number;
+  player_id: string;
+  acs: number;
+  kills: number;
+  deaths: number;
+  assists: number;
+  econ_rating: number;
+  first_bloods: number;
+  plants: number;
+  defuses: number;
+  win: boolean;
+  bonus_death: boolean;
+  bonus_assist: boolean;
+  bonus_fb: boolean;
+  bonus_plant: boolean;
+  bonus_defuse: boolean;
 };

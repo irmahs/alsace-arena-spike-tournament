@@ -13,16 +13,7 @@ function NavLinksInner({ seasons }: { seasons: number[] }) {
   const searchParams = useSearchParams();
   const router = useRouter();
 
-  const matchDetailPathMatch = pathname.match(/^(\/matches\/\d+\/\d+)/);
-  const matchDetailBasePath = matchDetailPathMatch?.[1] ?? null;
-  const matchIdParam = searchParams.get('matchId');
   const currentSeasonParam = searchParams.get('currentSeason');
-
-  const matchDetailHref = matchDetailBasePath
-    ? matchDetailBasePath
-    : matchIdParam && currentSeasonParam
-    ? `/matches/${currentSeasonParam}/${matchIdParam}`
-    : null;
 
   const selectedSeason = currentSeasonParam ?? (seasons.length ? String(seasons[seasons.length - 1]) : '');
 
@@ -63,21 +54,6 @@ function NavLinksInner({ seasons }: { seasons: number[] }) {
             </Link>
           );
         })}
-
-        {matchDetailHref ? (
-          <Link
-            href={matchDetailHref}
-            className={`text-[13px] font-medium px-3.5 py-1.5 rounded-md transition-colors ${
-              matchDetailBasePath ? 'text-white bg-[#1a1e2c]' : 'text-[#8b8fa8] hover:text-white hover:bg-[#1a1e2c]'
-            }`}
-          >
-            Match detail
-          </Link>
-        ) : (
-          <span className="text-[13px] font-medium px-3.5 py-1.5 rounded-md text-[#3d4260] cursor-not-allowed select-none">
-            Match detail
-          </span>
-        )}
       </div>
     </div>
   );
@@ -87,7 +63,7 @@ export default function NavLinks({ seasons }: { seasons: number[] }) {
   return (
     <Suspense fallback={
       <div className="flex gap-1">
-        {[...links, { label: 'Match detail' }].map(({ label }) => (
+        {links.map(({ label }) => (
           <span key={label} className="text-[13px] font-medium px-3.5 py-1.5 rounded-md text-[#3d4260]">
             {label}
           </span>

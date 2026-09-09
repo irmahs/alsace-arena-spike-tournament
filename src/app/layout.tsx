@@ -2,7 +2,9 @@ import './globals.css';
 import type { Metadata } from 'next';
 import { Rajdhani, Inter } from 'next/font/google';
 import NavLinks from '@/components/NavLinks';
+import AdminMenu from '@/components/AdminMenu';
 import { getMatches } from '@/services/matches';
+import { getAdminUser } from '@/lib/supabase/auth';
 
 const rajdhani = Rajdhani({
   subsets: ['latin'],
@@ -22,7 +24,7 @@ export const metadata: Metadata = {
 };
 
 export default async function RootLayout({ children }: { children: React.ReactNode }) {
-  const { matches } = await getMatches();
+  const [{ matches }, adminUser] = await Promise.all([getMatches(), getAdminUser()]);
   const season = matches.reduce((max, m) => Math.max(max, m.match_season ?? 0), 0) || null;
   const seasons = season ? Array.from({ length: season }, (_, i) => i + 1) : [];
 
@@ -49,9 +51,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
 
           <NavLinks seasons={seasons} />
 
-          <span className="text-[11px] font-semibold text-[#ff4655] border border-[#ff465533] px-2.5 py-1 rounded tracking-[.06em] uppercase">
-            Admin
-          </span>
+          <AdminMenu isAdmin={!!adminUser} />
         </nav>
 
         {children}

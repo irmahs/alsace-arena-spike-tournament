@@ -12,6 +12,10 @@
 - [x] Bonus icons + legend (first blood, least deaths, most assists, plants, defuses, victory)
 - [x] Season filtering on leaderboard
 
+- [x] Admin auth (Supabase login modal + `is_admin` guard on `/admin`)
+- [x] Admin score entry — season/match/game pickers, scan a scoreboard screenshot with Claude
+      vision, editable 10-player table with player-name matching + flags, auto bonuses, save
+
 ## In progress
 
 - [ ] Season leaderboard — player ranking table with cumulative points across all matches
@@ -22,7 +26,8 @@
 ## To do
 
 - [ ] Match dates — display and manage scheduled dates per match
-- [ ] Admin section — authenticated stat entry, score editing, player availability
+- [ ] Admin — score *editing* (load an existing game back into the form), player availability,
+      player CRUD, retain the uploaded screenshot
 - [ ] Simplify home page URL — `/?currentSeason=8&tab=1&matchId=1&matchSeason=8` has redundant params, should collapse to something like `/?season=8&match=1`
 - [x] Deployment — hosted on Vercel at https://alsace-arena-spike-tournament.vercel.app/
 

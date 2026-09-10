@@ -266,9 +266,9 @@ export default function ScoreEntry({
             onChange={(e) => setMatchNumber(e.target.value ? Number(e.target.value) : '')}
           >
             <option value="">–</option>
-            {[1, 2, 3, 4, 5, 6, 7, 8, 9].map((n) => (
+            {[1, 2, 3, 4, 5, 6, 7, 8].map((n) => (
               <option key={n} value={n}>
-                {n === 9 ? 'Match 9 · Final' : `Match ${n}`}
+                Match {n}
               </option>
             ))}
           </select>
@@ -282,7 +282,7 @@ export default function ScoreEntry({
             onChange={(e) => setGameNumber(e.target.value ? Number(e.target.value) : '')}
           >
             <option value="">–</option>
-            {[1, 2, 3].map((g) => (
+            {[1, 2, 3, 4, 5].map((g) => (
               <option key={g} value={g}>
                 Game {g}
               </option>

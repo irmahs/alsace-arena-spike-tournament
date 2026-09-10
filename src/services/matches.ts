@@ -6,7 +6,7 @@ export async function getMatchById(matchId: number): Promise<{ match: Match | nu
   const supabase = createClient(await cookies());
   const { data, error } = await supabase
     .from('matches')
-    .select('id, match_number, match_date, is_final, match_season')
+    .select('id, match_number, match_date, match_season')
     .eq('id', matchId)
     .single();
   return { match: (data ?? null) as Match | null, error: error?.message ?? null };
@@ -16,7 +16,7 @@ export async function getMatches(): Promise<{ matches: Match[]; error: string | 
   const supabase = createClient(await cookies());
   const { data, error } = await supabase
     .from('matches')
-    .select('id, match_number, match_date, is_final, match_season')
+    .select('id, match_number, match_date, match_season')
     .order('match_number');
   return {
     matches: (data ?? []) as Match[],

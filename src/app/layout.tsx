@@ -25,8 +25,10 @@ export const metadata: Metadata = {
 
 export default async function RootLayout({ children }: { children: React.ReactNode }) {
   const [{ matches }, adminUser] = await Promise.all([getMatches(), getAdminUser()]);
-  const season = matches.reduce((max, m) => Math.max(max, m.match_season ?? 0), 0) || null;
-  const seasons = season ? Array.from({ length: season }, (_, i) => i + 1) : [];
+  const seasons = [
+    ...new Set(matches.map((m) => m.match_season).filter((s): s is number => s != null)),
+  ].sort((a, b) => a - b);
+  const season = seasons.length ? seasons[seasons.length - 1] : null;
 
   return (
     <html

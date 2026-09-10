@@ -37,8 +37,8 @@ export async function saveGameStats(input: {
   if (!season || !matchNumber || !gameNumber) {
     return { ok: false, error: 'Pick a season, match and game.' };
   }
-  if (matchNumber < 1 || matchNumber > 9 || gameNumber < 1 || gameNumber > 3) {
-    return { ok: false, error: 'Match must be 1–9 and game 1–3.' };
+  if (matchNumber < 1 || matchNumber > 8 || gameNumber < 1 || gameNumber > 5) {
+    return { ok: false, error: 'Match must be 1–8 and game 1–5.' };
   }
   if (rows.length === 0) return { ok: false, error: 'Nothing to save.' };
   if (rows.some((r) => !r.player_id)) {
@@ -66,7 +66,7 @@ export async function saveGameStats(input: {
   } else {
     const { data: createdMatch, error: createMatchErr } = await supabase
       .from('matches')
-      .insert({ match_season: season, match_number: matchNumber, is_final: matchNumber === 9 })
+      .insert({ match_season: season, match_number: matchNumber })
       .select('id')
       .single();
     if (createMatchErr || !createdMatch) {

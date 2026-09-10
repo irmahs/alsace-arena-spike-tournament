@@ -17,7 +17,6 @@ export type Match = {
   id: number;
   match_number: number;
   match_date: string | null;
-  is_final: boolean;
   match_season: number | null;
 };
 

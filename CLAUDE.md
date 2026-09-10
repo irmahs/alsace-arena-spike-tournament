@@ -42,26 +42,31 @@ Next.js 16 (App Router) · React 19 · TypeScript (strict) · Tailwind CSS v4 ·
 
 - `src/app/` — routing only. Every page is an async Server Component. Route params and
   `searchParams` are Promises in Next 16 and must be awaited.
-  - `/` (`page.tsx`) — match tabs + sidebar. Every tab renders the same cumulative-stats table
-    via `getPlayerTotals`: "All matches" = season-wide global leaderboard (all regular matches);
-    a match tab or the "Final ★" tab = that single match, with a "Match detail →" link. Renders
-    an empty table (headers only) when no stats exist. Auto-redirects to
-    `?currentSeason=<maxSeason>` when the param is missing.
-  - `/matches` — match grid.
-  - `/matches/[season]/[matchId]` — match detail: stats **aggregated across all 3 games**.
-  - `/matches/[season]/[matchId]/[game]` — single-game player stats.
+  - `/` (`page.tsx`) — podium (MVP + silver + bronze from `seasonTotals[0..2]`) + match tabs.
+    Only matches that **have games recorded** appear (`getGameCounts`); tabs = `playedMatches`.
+    "All matches" tab = season-wide global leaderboard; a match tab = that single match, with a
+    "Match detail →" link. Same cumulative-stats table via `getPlayerTotals`; empty table
+    (headers only) when no stats. Auto-redirects to `?currentSeason=<maxSeason>` when missing.
+  - `/matches` — match grid (all matches of the latest season).
+  - `/matches/[season]/[matchId]` — match detail. Uses `getPlayerTotals([matchId])` for the
+    combined table (no local scoring), `getGames` for the game tabs (variable 2–5, data-driven).
+    Header: "Most Valuable Player" card (`displayPlayers[0]` + stats) then `<StatLeaders>`
+    (client) — a 6-card carousel, 3 at a time, naming the leader for least deaths / most
+    kills / assists / first bloods / plants / defuses.
+  - `/matches/[season]/[matchId]/[game]` — single-game stats; same MVP + `<StatLeaders>` header.
   - `/admin` (`page.tsx` + `components/ScoreEntry.tsx`, client) — score-entry form. Guarded by
     `getAdminUser()`, `redirect('/')` when unauthorized. Flow: season (1..maxSeason+buffer),
-    match (1–9), game (1–3) — plain `<select>`s, none pulled from the DB → upload a screenshot →
+    match (1–8), game (1–5) — plain `<select>`s, none pulled from the DB (the header's season
+    dropdown, by contrast, only lists seasons that exist) → upload a screenshot →
     `POST /api/admin/scan-scoreboard` (Claude vision, forced tool call) returns 10 rows → each
     scanned name is matched against `players.username` / `players.in_game_name`
     (case-insensitive); no match = a ⚠ flag with the raw name kept in an editable textbox + a
     player `<select>` → least-deaths / most-assists / most-plants / most-defuses bonuses are
     auto-ticked (first-blood and win stay manual; no win ticked = no +50) → **Save game** calls
     the `saveGameStats` server action in `app/admin/actions.ts`, which finds-or-creates the
-    `matches` row (by season + number, `is_final` when number 9), then the `games` row, then
-    replaces its `game_stats`. Needs `misc/admin-setup.sql` steps 5–6 (RLS + a
-    `(match_season, match_number)` unique constraint replacing the lone `match_number` one).
+    `matches` row (by season + number), then the `games` row, then replaces its `game_stats`.
+    Needs `misc/admin-setup.sql` steps 5–8 (RLS, `(match_season, match_number)` unique,
+    dropping `is_final` + match 9, widening `games.game_number` to 1–5).
   - Login is **not a page** — the "Admin" nav item (`components/AdminMenu.tsx`, client) opens a
     `<dialog>` modal that signs in with the **browser** Supabase client
     (`supabase.auth.signInWithPassword`), checks `profiles.is_admin` (signs out + errors if
@@ -82,7 +87,8 @@ Next.js 16 (App Router) · React 19 · TypeScript (strict) · Tailwind CSS v4 ·
   auto-refreshed**).
 - `src/types/index.ts` — domain model mirroring the DB.
 - `src/components/` — client components, all `'use client'` (`NavLinks.tsx`, wrapped in
-  `<Suspense>` for `useSearchParams`; `AdminMenu.tsx` login modal; `ScoreEntry.tsx` score form).
+  `<Suspense>` for `useSearchParams`; `AdminMenu.tsx` login modal; `ScoreEntry.tsx` score form;
+  `StatLeaders.tsx` category-leader carousel).
   `AdminMenu` is the only user of the browser Supabase client; `ScoreEntry` talks to the API
   route + the server action.
 
@@ -96,18 +102,21 @@ total = acs + kills + assists + econ_rating + first_bloods + plants + defuses
       + bonus_count * POINTS_PER_BONUS  - deaths  + wins * POINTS_PER_WIN
 ```
 
-`ScoreEntry.tsx` uses `computeScore()`. The two match page components
-(`matches/[season]/[matchId]/page.tsx`, `.../[game]/page.tsx`) and `services/matchScores.ts`
-still **inline their own copy** of the same formula — migrate them to `computeScore()` when
-touching them; until then, any change to the formula must land in all four places.
+`ScoreEntry.tsx` uses `computeScore()`. The combined match-detail page and the home leaderboard
+get their totals from `services/matchScores.getPlayerTotals` (which still **inlines** the
+formula). The per-game page `matches/[season]/[matchId]/[game]/page.tsx` also **inlines** it.
+Migrate both to `computeScore()` when touching them; until then a formula change must land in
+all three places.
 
 ### Data model (Supabase, `misc/database.sql` — reference only, not runnable)
 
-`ranks` → `players` (uuid PK, `current_rank_id` FK) → `matches` (1–9, `is_final`, `match_season`)
-→ `games` (1–3 per match) → `game_stats` (one row per player per game; all the stat + bonus
-columns). `profiles.is_admin` gates `/admin`. RLS is on: public read everywhere; **admins need
-write policies on `games` + `game_stats`** for score entry (`misc/admin-setup.sql` step 5). A
-match is "played" when `match_date` is non-null.
+`ranks` → `players` (uuid PK, `current_rank_id` FK) → `matches` (`match_number` 1–8,
+`match_season`, unique on the pair) → `games` (1–5 per match, variable) → `game_stats` (one row per
+player per game; all the stat + bonus columns). `profiles.is_admin` gates `/admin`. RLS is on:
+public read everywhere; **admins need write policies on `matches` + `games` + `game_stats`**
+for score entry (`misc/admin-setup.sql` steps 5–8). No `is_final` — the "final match" concept
+was removed. On the home page a match counts as "played" when it has ≥1 `games` row; elsewhere
+`match_date != null` marks a match as done.
 
 ## Conventions
 

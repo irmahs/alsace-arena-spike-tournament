@@ -4,6 +4,7 @@ import { getGames } from '@/services/games';
 import { getGameStatsBySeasonByMatchByGame } from '@/services/gameStats';
 import { getMatchById } from '@/services/matches';
 import { POINTS_PER_BONUS, POINTS_PER_WIN } from '@/constants/scoring';
+import StatLeaders from '@/components/StatLeaders';
 import type { GamePlayerStat } from '@/types';
 
 const rankColors = ['text-[#f5a623]', 'text-[#b0b8cc]', 'text-[#b07840]'];
@@ -66,11 +67,24 @@ export default async function Page({
     })
     .sort((a, b) => b.total - a.total);
 
-  const mostKills = displayPlayers.length > 0 ? Math.max(...displayPlayers.map((p) => p.kills)) : '—';
-  const leastDeaths = displayPlayers.length > 0 ? Math.min(...displayPlayers.map((p) => p.deaths)) : '—';
-  const bestScorer = displayPlayers[0]?.username ?? '—';
-  const mostAssists = displayPlayers.length > 0 ? Math.max(...displayPlayers.map((p) => p.assists)) : '—';
-  const topAcs = displayPlayers[0]?.acs ?? '—';
+  const mvp = displayPlayers[0] ?? null;
+  const leaderName = (
+    key: 'kills' | 'assists' | 'deaths' | 'first_bloods' | 'plants' | 'defuses',
+    dir: 'max' | 'min',
+  ) => {
+    if (displayPlayers.length === 0) return '—';
+    return displayPlayers.reduce((best, p) =>
+      dir === 'max' ? (p[key] > best[key] ? p : best) : p[key] < best[key] ? p : best,
+    ).username;
+  };
+  const categories = [
+    { label: 'Least deaths', name: leaderName('deaths', 'min') },
+    { label: 'Most kills', name: leaderName('kills', 'max') },
+    { label: 'Most assists', name: leaderName('assists', 'max') },
+    { label: 'Most first bloods', name: leaderName('first_bloods', 'max') },
+    { label: 'Most plants', name: leaderName('plants', 'max') },
+    { label: 'Most defuses', name: leaderName('defuses', 'max') },
+  ];
 
   return (
     <div>
@@ -94,43 +108,60 @@ export default async function Page({
           Match {matchNumber}
         </div>
         <div className="flex items-center gap-3 text-[11px] text-[#3d4260] mt-1">
-          {games.length > 0 && <><span>·</span><span>{games.length} games played</span></>}
+          {games.length > 0 && <span>{games.length} game{games.length === 1 ? '' : 's'} played</span>}
         </div>
       </div>
 
-      {/* Stat cards */}
-      <div className="flex gap-2.5 px-6 py-4 border-b border-[#1e2130]">
-        {[  
-          { val: mostKills, lbl: 'Most kills' },
-          { val: leastDeaths, lbl: 'Least deaths' },
-          { val: bestScorer, lbl: 'MVP', gold: true },
-          { val: mostAssists, lbl: 'Most assists' },
-          { val: topAcs, lbl: 'Top ACS' },
-        ].map(({ val, lbl, gold }) => (
-          <div key={lbl} className="flex-1 bg-[#111420] rounded-lg px-3.5 py-2.5">
-            <div className={`font-display text-[22px] font-bold leading-none ${gold ? 'text-[#f5a623]' : 'text-white'}`}>
-              {val}
+      {/* Most Valuable Player */}
+      <div className="px-6 py-5 border-b border-[#1e2130]">
+        {mvp ? (
+          <div className="flex flex-wrap items-center gap-4 rounded-xl border border-[#f5a62330] bg-[#14100d] px-5 py-4">
+            <IconTrophy size={28} className="shrink-0 text-[#f5a623]" />
+            <div>
+              <div className="text-[10px] font-semibold uppercase tracking-[.14em] text-[#f5a623]">
+                Most Valuable Player
+              </div>
+              <div className="mt-1 font-display text-[22px] font-bold leading-none text-white">{mvp.username}</div>
             </div>
-            <div className="text-[10px] text-[#3d4260] tracking-[.07em] uppercase mt-1">{lbl}</div>
+            <div className="ml-auto flex gap-5">
+              {([
+                ['Points', mvp.total, true],
+                ['K / D / A', `${mvp.kills} / ${mvp.deaths} / ${mvp.assists}`, false],
+                ['ACS', mvp.acs, false],
+                ['Result', mvp.win ? 'Win' : 'Loss', false],
+              ] as const).map(([lbl, val, gold]) => (
+                <div key={lbl} className="text-right">
+                  <div className={`font-display text-[18px] font-bold leading-none ${gold ? 'text-[#f5a623]' : 'text-white'}`}>
+                    {val}
+                  </div>
+                  <div className="mt-1 text-[10px] uppercase tracking-[.06em] text-[#5a5f78]">{lbl}</div>
+                </div>
+              ))}
+            </div>
           </div>
-        ))}
+        ) : (
+          <p className="text-[#5a5f78] text-sm">No stats recorded yet.</p>
+        )}
       </div>
 
+      {/* Category leaders */}
+      {mvp && <StatLeaders items={categories} />}
+
       {/* Game tabs */}
-      <div className="flex px-6 border-b border-[#1e2130]">
+      <div className="flex px-6 border-b border-[#1e2130] overflow-x-auto">
         <Link
           href={basePath}
           className="text-[12px] font-medium px-4 py-3 border-b-2 whitespace-nowrap tracking-[.03em] text-[#5a5f78] border-transparent hover:text-[#8b8fa8]"
         >
           All games (total)
         </Link>
-        {[1, 2, 3].map((n) => (
+        {games.map((g) => (
           <Link
-            key={n}
-            href={`${basePath}/${n}`}
-            className={`text-[12px] font-medium px-4 py-3 border-b-2 whitespace-nowrap tracking-[.03em] ${activeGame === n ? 'text-[#ff4655] border-[#ff4655]' : 'text-[#5a5f78] border-transparent hover:text-[#8b8fa8]'}`}
+            key={g.id}
+            href={`${basePath}/${g.game_number}`}
+            className={`text-[12px] font-medium px-4 py-3 border-b-2 whitespace-nowrap tracking-[.03em] ${activeGame === g.game_number ? 'text-[#ff4655] border-[#ff4655]' : 'text-[#5a5f78] border-transparent hover:text-[#8b8fa8]'}`}
           >
-            Game {n}
+            Game {g.game_number}
           </Link>
         ))}
       </div>

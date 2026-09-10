@@ -100,3 +100,23 @@ create policy "public read matches" on public.matches for select using (true);
 drop policy if exists "admin write matches" on public.matches;
 create policy "admin write matches" on public.matches
   for all to authenticated using (public.is_admin()) with check (public.is_admin());
+
+-- 7. The "final match" concept was dropped. is_final is no longer read or written,
+--    and match 9 (the old final) no longer exists — a season is matches 1–8.
+delete from public.game_stats gs
+  using public.games g, public.matches m
+  where gs.game_id = g.id and g.match_id = m.id and m.match_number = 9;
+delete from public.games g
+  using public.matches m
+  where g.match_id = m.id and m.match_number = 9;
+delete from public.matches where match_number = 9;
+
+alter table public.matches drop column if exists is_final;
+alter table public.matches drop constraint if exists matches_match_number_check;
+alter table public.matches
+  add constraint matches_match_number_check check (match_number >= 1 and match_number <= 8);
+
+-- 8. A match can have a variable number of games (2–5, not always 3).
+alter table public.games drop constraint if exists games_game_number_check;
+alter table public.games
+  add constraint games_game_number_check check (game_number >= 1 and game_number <= 5);

@@ -4,23 +4,26 @@
 
 - [x] Supabase setup (schema, RLS, SSR client, env vars)
 - [x] Next.js project structure (services, lib, types, constants)
-- [x] Navigation with season dropdown
-- [x] Match list with status (done / upcoming) and sidebar
+- [x] Navigation with season dropdown (only seasons present in the DB)
+- [x] Match list + sidebar with status (done / upcoming)
 - [x] Match detail page — aggregated stats across all 3 games
 - [x] Per-game stats page with player performance table
-- [x] Scoring formula (ACS + K + A + Eco + FB + Pl. + Def. + bonuses − deaths + victories)
+- [x] Scoring formula + `computeScore()` helper
 - [x] Bonus icons + legend (first blood, least deaths, most assists, plants, defuses, victory)
-- [x] Season filtering on leaderboard
-
+- [x] Season leaderboard — cumulative points across all games; only shows matches that have games
+- [x] Podium — MVP + silver + bronze of the season, above the leaderboard
+- [x] Match/game detail — Most Valuable Player card + 6-card leader carousel (least deaths,
+      most kills / assists / first bloods / plants / defuses), 3 at a time
+- [x] Variable games per match (2–5), data-driven game tabs
+- [x] Removed the "final match" concept — is_final dropped, match 9 removed, seasons are 1–8
 - [x] Admin auth (Supabase login modal + `is_admin` guard on `/admin`)
 - [x] Admin score entry — season/match/game pickers, scan a scoreboard screenshot with Claude
       vision, editable 10-player table with player-name matching + flags, auto bonuses, save
+- [x] Deployment — Vercel (https://alsace-arena-spike-tournament.vercel.app/)
+- [x] Cloud dev container (`.devcontainer/`)
 
 ## In progress
 
-- [ ] Season leaderboard — player ranking table with cumulative points across all matches
-- [ ] Home page match progression display (games played count per match)
-- [ ] Final match (match 9) — top-10 roster display and substitution logic
 - [ ] UI / UX polish to align all views
 
 ## To do
@@ -28,11 +31,13 @@
 - [ ] Match dates — display and manage scheduled dates per match
 - [ ] Admin — score *editing* (load an existing game back into the form), player availability,
       player CRUD, retain the uploaded screenshot
-- [ ] Simplify home page URL — `/?currentSeason=8&tab=1&matchId=1&matchSeason=8` has redundant params, should collapse to something like `/?season=8&match=1`
-- [x] Deployment — hosted on Vercel at https://alsace-arena-spike-tournament.vercel.app/
+- [ ] Migrate `matchScores.getPlayerTotals` + the per-game page onto `computeScore()`
+- [ ] Simplify home page URL — `/?currentSeason=8&tab=1&matchId=1&matchSeason=8` has redundant
+      params, should collapse to something like `/?season=8&match=1`
+- [ ] Root `middleware.ts` to refresh Supabase sessions (wire up `lib/supabase/middleware.ts`)
 
 ## Backlog
 
 - [ ] Player profile pages
 - [ ] Mobile responsiveness
-- [ ] Match history across multiple seasons
+- [ ] Match history across multiple seasons on `/matches`

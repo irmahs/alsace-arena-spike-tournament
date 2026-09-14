@@ -3,8 +3,23 @@ import type { Metadata } from 'next';
 import { Rajdhani, Inter } from 'next/font/google';
 import NavLinks from '@/components/NavLinks';
 import AdminMenu from '@/components/AdminMenu';
+import ThemeToggle from '@/components/ThemeToggle';
+import LanguageToggle from '@/components/LanguageToggle';
 import { getMatches } from '@/services/matches';
 import { getAdminUser } from '@/lib/supabase/auth';
+import { getDictionary } from '@/i18n/dictionary';
+import { getLocale } from '@/i18n/locale';
+
+// Runs before paint so the page never flashes the wrong theme.
+const THEME_INIT_SCRIPT = `
+(function () {
+  try {
+    var stored = localStorage.getItem('theme');
+    var theme = stored === 'light' || stored === 'dark' ? stored : 'dark';
+    document.documentElement.dataset.theme = theme;
+  } catch (e) {}
+})();
+`;
 
 const rajdhani = Rajdhani({
   subsets: ['latin'],
@@ -24,7 +39,12 @@ export const metadata: Metadata = {
 };
 
 export default async function RootLayout({ children }: { children: React.ReactNode }) {
-  const [{ matches }, adminUser] = await Promise.all([getMatches(), getAdminUser()]);
+  const [{ matches }, adminUser, locale] = await Promise.all([
+    getMatches(),
+    getAdminUser(),
+    getLocale(),
+  ]);
+  const t = getDictionary(locale);
   const seasons = [
     ...new Set(matches.map((m) => m.match_season).filter((s): s is number => s != null)),
   ].sort((a, b) => a - b);
@@ -32,28 +52,32 @@ export default async function RootLayout({ children }: { children: React.ReactNo
 
   return (
     <html
-      lang="en"
+      lang={locale}
       suppressHydrationWarning
       className={`${rajdhani.variable} ${inter.variable}`}
     >
-      <body className="bg-[#0d0f14] text-[#e2e4ea] min-h-screen" style={{ fontFamily: 'var(--font-inter), sans-serif' }}>
-        <nav className="flex items-center justify-between px-7 py-3.5 bg-[#0a0c10] border-b border-[#1e2130]">
+      <body className="bg-[var(--bg)] text-[var(--text)] min-h-screen" style={{ fontFamily: 'var(--font-inter), sans-serif' }}>
+        <script dangerouslySetInnerHTML={{ __html: THEME_INIT_SCRIPT }} />
+        <nav className="flex items-center justify-between px-7 py-3.5 bg-[var(--bg-nav)] border-b border-[var(--border)]">
           <div
-            className="flex items-center gap-2.5 font-display font-bold text-xl text-white"
+            className="flex items-center gap-2.5 font-display font-bold text-xl text-[var(--text-strong)]"
           >
             <div
-              className="w-7 h-7 bg-[#ff4655] flex-shrink-0"
+              className="w-7 h-7 bg-[var(--accent)] flex-shrink-0"
               style={{ clipPath: 'polygon(50% 0%, 100% 38%, 82% 100%, 18% 100%, 0% 38%)' }}
             />
             SPIKE ALSACE ARENA
-            <span className="text-[11px] font-medium text-[#ff4655] tracking-[.12em] uppercase ml-0.5">
-              {season ? `Season ${season}` : 'Season —'}
+            <span className="text-[11px] font-medium text-[var(--accent)] tracking-[.12em] uppercase ml-0.5">
+              {season ? t.season(season) : t.seasonDash}
             </span>
           </div>
 
-          <NavLinks seasons={seasons} />
-
-          <AdminMenu isAdmin={!!adminUser} />
+          <div className="flex items-center gap-3">
+            <NavLinks seasons={seasons} locale={locale} />
+            <ThemeToggle />
+            <LanguageToggle locale={locale} />
+            <AdminMenu isAdmin={!!adminUser} />
+          </div>
         </nav>
 
         {children}

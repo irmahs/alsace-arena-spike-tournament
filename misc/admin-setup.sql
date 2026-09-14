@@ -120,3 +120,14 @@ alter table public.matches
 alter table public.games drop constraint if exists games_game_number_check;
 alter table public.games
   add constraint games_game_number_check check (game_number >= 1 and game_number <= 5);
+
+-- 9. The score-entry form can register a brand-new player (username only) inline.
+--    Needs public read (unchanged, if it already existed) + an admin insert policy.
+alter table public.players enable row level security;
+
+drop policy if exists "public read players" on public.players;
+create policy "public read players" on public.players for select using (true);
+
+drop policy if exists "admin insert players" on public.players;
+create policy "admin insert players" on public.players
+  for insert to authenticated with check (public.is_admin());

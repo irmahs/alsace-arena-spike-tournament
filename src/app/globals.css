@@ -3,3 +3,115 @@
 @theme {
   --font-display: var(--font-rajdhani);
 }
+
+/* ==========================================================================
+   Theme tokens. Dark is the app's original look (values unchanged from the
+   literal hex that used to be hard-coded everywhere); [data-theme="light"]
+   is the alternate palette. Toggled by components/ThemeToggle.tsx, which
+   sets data-theme on <html> and persists the choice in localStorage.
+   ========================================================================== */
+:root {
+  color-scheme: dark;
+  --scheme: dark;
+
+  --bg: #0d0f14;
+  --bg-nav: #0a0c10;
+  --surface: #111420;
+  --surface-strong: #1a1e2c;
+  --gold-tint: #14100d;
+  --bronze-tint: #130f0c;
+  --silver-tint: #101318;
+
+  --border: #1e2130;
+  --border-strong: #2a2f44;
+
+  --text: #e2e4ea;
+  --text-strong: #ffffff;
+  --text-secondary: #c8ccdc;
+  --text-subtle: #8b8fa8;
+  --text-muted: #5a5f78;
+  --text-faint: #3d4260;
+
+  --accent: #ff4655;
+  --accent-hover: #ff5b68;
+  --accent-11: #ff465511;
+  --accent-33: #ff465533;
+  --accent-55: #ff465555;
+  --accent-77: #ff465577;
+  --accent-0f: #ff46550f;
+
+  --gold: #f5a623;
+  --gold-0f: #f5a6230f;
+  --gold-30: #f5a62330;
+  --gold-33: #f5a62333;
+
+  --green: #4ade80;
+  --green-12: #4ade8012;
+  --green-22: #4ade8022;
+
+  --silver: #b0b8cc;
+  --silver-26: #b0b8cc26;
+  --bronze: #b07840;
+  --bronze-26: #b0784026;
+}
+
+:root[data-theme='light'] {
+  color-scheme: light;
+  --scheme: light;
+
+  --bg: #f5f6fa;
+  --bg-nav: #ffffff;
+  --surface: #eef0f6;
+  --surface-strong: #e2e5f0;
+  --gold-tint: #fdf3e2;
+  --bronze-tint: #f8ece1;
+  --silver-tint: #eef0f6;
+
+  --border: #dfe2ec;
+  --border-strong: #c7cbdb;
+
+  --text: #14161f;
+  --text-strong: #05060a;
+  --text-secondary: #2c3044;
+  --text-subtle: #565b74;
+  --text-muted: #6b7086;
+  --text-faint: #9a9fb8;
+
+  --accent: #d9354a;
+  --accent-hover: #c22336;
+  --accent-11: #d9354a14;
+  --accent-33: #d9354a33;
+  --accent-55: #d9354a55;
+  --accent-77: #d9354a77;
+  --accent-0f: #d9354a12;
+
+  --gold: #b3790a;
+  --gold-0f: #b3790a12;
+  --gold-30: #b3790a30;
+  --gold-33: #b3790a33;
+
+  --green: #159a4d;
+  --green-12: #159a4d14;
+  --green-22: #159a4d22;
+
+  --silver: #6b7280;
+  --silver-26: #6b728026;
+  --bronze: #93591f;
+  --bronze-26: #93591f26;
+}
+
+body {
+  background: var(--bg);
+}
+
+/* Hide the native increment/decrement spinners on number inputs everywhere. */
+input[type='number'] {
+  appearance: textfield;
+  -moz-appearance: textfield;
+}
+input[type='number']::-webkit-outer-spin-button,
+input[type='number']::-webkit-inner-spin-button {
+  appearance: none;
+  -webkit-appearance: none;
+  margin: 0;
+}

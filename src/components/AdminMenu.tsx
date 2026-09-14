@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
 
 const badgeClass =
-  'text-[11px] font-semibold text-[#ff4655] border border-[#ff465533] hover:border-[#ff465577] px-2.5 py-1 rounded tracking-[.06em] uppercase transition-colors';
+  'text-[11px] font-semibold text-[var(--accent)] border border-[var(--accent-33)] hover:border-[var(--accent-77)] px-2.5 py-1 rounded tracking-[.06em] uppercase transition-colors';
 
 export default function AdminMenu({ isAdmin }: { isAdmin: boolean }) {
   const dialogRef = useRef<HTMLDialogElement>(null);
@@ -73,16 +73,16 @@ export default function AdminMenu({ isAdmin }: { isAdmin: boolean }) {
         }}
         className="fixed inset-0 m-0 h-full max-h-none w-full max-w-none items-center justify-center bg-transparent p-5 backdrop:bg-black/60 open:flex"
       >
-        <div className="max-h-full w-[380px] max-w-full overflow-y-auto rounded-xl border border-[#1e2130] bg-[#0d0f14] p-7">
+        <div className="max-h-full w-[380px] max-w-full overflow-y-auto rounded-xl border border-[var(--border)] bg-[var(--bg)] p-7">
           <div className="mb-5 flex items-start justify-between">
             <div>
-              <div className="mb-1 text-[11px] font-semibold uppercase tracking-[.14em] text-[#ff4655]">Admin</div>
-              <h2 className="font-display text-[20px] font-bold leading-none text-white">Sign in</h2>
+              <div className="mb-1 text-[11px] font-semibold uppercase tracking-[.14em] text-[var(--accent)]">Admin</div>
+              <h2 className="font-display text-[20px] font-bold leading-none text-[var(--text-strong)]">Sign in</h2>
             </div>
             <button
               type="button"
               onClick={() => dialogRef.current?.close()}
-              className="text-[18px] leading-none text-[#5a5f78] hover:text-white"
+              className="text-[18px] leading-none text-[var(--text-muted)] hover:text-[var(--text-strong)]"
               aria-label="Close"
             >
               ×
@@ -90,38 +90,38 @@ export default function AdminMenu({ isAdmin }: { isAdmin: boolean }) {
           </div>
 
           {error && (
-            <div className="mb-4 rounded-md border border-[#ff465533] bg-[#ff46550f] px-3 py-2 text-[12px] text-[#ff4655]">
+            <div className="mb-4 rounded-md border border-[var(--accent-33)] bg-[var(--accent-0f)] px-3 py-2 text-[12px] text-[var(--accent)]">
               {error}
             </div>
           )}
 
           <form onSubmit={handleSubmit} className="flex flex-col gap-3.5">
             <label className="flex flex-col gap-1.5">
-              <span className="text-[11px] font-semibold uppercase tracking-[.06em] text-[#5a5f78]">Email</span>
+              <span className="text-[11px] font-semibold uppercase tracking-[.06em] text-[var(--text-muted)]">Email</span>
               <input
                 type="email"
                 name="email"
                 autoComplete="email"
                 required
-                className="rounded-md border border-[#1e2130] bg-[#111420] px-3 py-2.5 text-[13px] text-[#e2e4ea] focus:border-[#ff465555] focus:outline-none"
+                className="rounded-md border border-[var(--border)] bg-[var(--surface)] px-3 py-2.5 text-[13px] text-[var(--text)] focus:border-[var(--accent-55)] focus:outline-none"
               />
             </label>
 
             <label className="flex flex-col gap-1.5">
-              <span className="text-[11px] font-semibold uppercase tracking-[.06em] text-[#5a5f78]">Password</span>
+              <span className="text-[11px] font-semibold uppercase tracking-[.06em] text-[var(--text-muted)]">Password</span>
               <input
                 type="password"
                 name="password"
                 autoComplete="current-password"
                 required
-                className="rounded-md border border-[#1e2130] bg-[#111420] px-3 py-2.5 text-[13px] text-[#e2e4ea] focus:border-[#ff465555] focus:outline-none"
+                className="rounded-md border border-[var(--border)] bg-[var(--surface)] px-3 py-2.5 text-[13px] text-[var(--text)] focus:border-[var(--accent-55)] focus:outline-none"
               />
             </label>
 
             <button
               type="submit"
               disabled={pending}
-              className="mt-1 rounded-md bg-[#ff4655] px-4 py-2.5 text-[13px] font-semibold uppercase tracking-[.04em] text-white transition-colors hover:bg-[#ff5b68] disabled:opacity-60"
+              className="mt-1 rounded-md bg-[var(--accent)] px-4 py-2.5 text-[13px] font-semibold uppercase tracking-[.04em] text-white transition-colors hover:bg-[var(--accent-hover)] disabled:opacity-60"
             >
               {pending ? 'Signing in…' : 'Sign in'}
             </button>

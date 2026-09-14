@@ -6,7 +6,9 @@ import { createClient } from '@/lib/supabase/server';
 import { getAdminUser } from '@/lib/supabase/auth';
 
 export type SaveRow = {
+  /** Existing player's id. Empty when this row is a brand-new player — see `new_player`. */
   player_id: string;
+  new_player?: { username: string };
   acs: number;
   kills: number;
   deaths: number;
@@ -25,6 +27,106 @@ export type SaveRow = {
 
 export type SaveResult = { ok: boolean; error: string | null };
 
+export type LoadedRow = {
+  player_id: string;
+  acs: number;
+  kills: number;
+  deaths: number;
+  assists: number;
+  econ_rating: number;
+  first_bloods: number;
+  plants: number;
+  defuses: number;
+  win: boolean;
+  bonus_fb: boolean;
+  bonus_death: boolean;
+  bonus_assist: boolean;
+  bonus_plant: boolean;
+  bonus_defuse: boolean;
+};
+
+/** Looks up (never creates) the games.id for a (season, match_number, game_number), if it exists. */
+async function findGameId(
+  supabase: ReturnType<typeof createClient>,
+  season: number,
+  matchNumber: number,
+  gameNumber: number,
+): Promise<{ gameId: number | null; error: string | null }> {
+  const { data: match, error: matchErr } = await supabase
+    .from('matches')
+    .select('id')
+    .eq('match_season', season)
+    .eq('match_number', matchNumber)
+    .maybeSingle();
+  if (matchErr) return { gameId: null, error: matchErr.message };
+  if (!match) return { gameId: null, error: null };
+
+  const { data: game, error: gameErr } = await supabase
+    .from('games')
+    .select('id')
+    .eq('match_id', match.id)
+    .eq('game_number', gameNumber)
+    .maybeSingle();
+  if (gameErr) return { gameId: null, error: gameErr.message };
+  return { gameId: game?.id ?? null, error: null };
+}
+
+/** Loads the player rows already saved for a (season, match, game), for editing. Empty if none exist yet. */
+export async function loadGameStats(input: {
+  season: number;
+  matchNumber: number;
+  gameNumber: number;
+}): Promise<{ rows: LoadedRow[]; error: string | null }> {
+  if (!(await getAdminUser())) return { rows: [], error: 'Not authorized.' };
+
+  const { season, matchNumber, gameNumber } = input;
+  if (!season || !matchNumber || !gameNumber) return { rows: [], error: null };
+
+  const supabase = createClient(await cookies());
+  const { gameId, error: findErr } = await findGameId(supabase, season, matchNumber, gameNumber);
+  if (findErr) return { rows: [], error: findErr };
+  if (!gameId) return { rows: [], error: null };
+
+  const { data, error } = await supabase
+    .from('game_stats')
+    .select(
+      'player_id, acs, kills, deaths, assists, econ_rating, first_bloods, plants, defuses, win, bonus_fb, bonus_death, bonus_assist, bonus_plant, bonus_defuse',
+    )
+    .eq('game_id', gameId)
+    .order('id');
+  if (error) return { rows: [], error: error.message };
+
+  return { rows: (data ?? []) as LoadedRow[], error: null };
+}
+
+/** Deletes a saved game (and its stats) for a (season, match, game). No-op if it doesn't exist. */
+export async function deleteGameStats(input: {
+  season: number;
+  matchNumber: number;
+  gameNumber: number;
+}): Promise<SaveResult> {
+  if (!(await getAdminUser())) return { ok: false, error: 'Not authorized.' };
+
+  const { season, matchNumber, gameNumber } = input;
+  if (!season || !matchNumber || !gameNumber) {
+    return { ok: false, error: 'Pick a season, match and game.' };
+  }
+
+  const supabase = createClient(await cookies());
+  const { gameId, error: findErr } = await findGameId(supabase, season, matchNumber, gameNumber);
+  if (findErr) return { ok: false, error: findErr };
+  if (!gameId) return { ok: true, error: null }; // nothing to delete
+
+  const { error: delStatsErr } = await supabase.from('game_stats').delete().eq('game_id', gameId);
+  if (delStatsErr) return { ok: false, error: delStatsErr.message };
+
+  const { error: delGameErr } = await supabase.from('games').delete().eq('id', gameId);
+  if (delGameErr) return { ok: false, error: delGameErr.message };
+
+  revalidatePath('/', 'layout');
+  return { ok: true, error: null };
+}
+
 export async function saveGameStats(input: {
   season: number;
   matchNumber: number;
@@ -41,15 +143,37 @@ export async function saveGameStats(input: {
     return { ok: false, error: 'Match must be 1–8 and game 1–5.' };
   }
   if (rows.length === 0) return { ok: false, error: 'Nothing to save.' };
-  if (rows.some((r) => !r.player_id)) {
-    return { ok: false, error: 'Every row must be linked to a player.' };
-  }
-  const ids = rows.map((r) => r.player_id);
-  if (new Set(ids).size !== ids.length) {
-    return { ok: false, error: 'The same player is used on more than one row.' };
+  if (rows.some((r) => !r.player_id && !r.new_player?.username.trim())) {
+    return { ok: false, error: 'Every row needs a player picked, or a new player’s username.' };
   }
 
   const supabase = createClient(await cookies());
+
+  // Create any brand-new players first, resolving every row to a player_id.
+  const resolved: SaveRow[] = [];
+  for (const r of rows) {
+    if (r.player_id) {
+      resolved.push(r);
+      continue;
+    }
+    const { data: createdPlayer, error: createPlayerErr } = await supabase
+      .from('players')
+      .insert({ username: r.new_player!.username.trim() })
+      .select('id')
+      .single();
+    if (createPlayerErr || !createdPlayer) {
+      return {
+        ok: false,
+        error: createPlayerErr?.message ?? `Could not create player "${r.new_player!.username}".`,
+      };
+    }
+    resolved.push({ ...r, player_id: createdPlayer.id });
+  }
+
+  const ids = resolved.map((r) => r.player_id);
+  if (new Set(ids).size !== ids.length) {
+    return { ok: false, error: 'The same player is used on more than one row.' };
+  }
 
   // Find or create the match row for this (season, match_number).
   let matchId: number;
@@ -106,7 +230,7 @@ export async function saveGameStats(input: {
   }
 
   const { error: insertErr } = await supabase.from('game_stats').insert(
-    rows.map((r) => ({
+    resolved.map((r) => ({
       game_id: gameId,
       player_id: r.player_id,
       acs: r.acs,

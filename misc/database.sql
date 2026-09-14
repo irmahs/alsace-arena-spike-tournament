@@ -10,24 +10,22 @@ CREATE TABLE public.ranks (
 CREATE TABLE public.players (
   id uuid NOT NULL DEFAULT gen_random_uuid(),
   username character varying NOT NULL UNIQUE,
-  in_game_name character varying NOT NULL,
-  discord_name character varying,
+  nickname text,
   current_rank_id integer,
   CONSTRAINT players_pkey PRIMARY KEY (id),
   CONSTRAINT players_current_rank_id_fkey FOREIGN KEY (current_rank_id) REFERENCES public.ranks(id)
 );
 CREATE TABLE public.matches (
   id integer GENERATED ALWAYS AS IDENTITY NOT NULL,
-  match_number smallint NOT NULL CHECK (match_number >= 1 AND match_number <= 8),
+  match_number smallint NOT NULL CHECK (match_number >= 1 AND match_number <= 9),
   match_date date,
   match_season smallint,
-  CONSTRAINT matches_pkey PRIMARY KEY (id),
-  CONSTRAINT matches_season_number_key UNIQUE (match_season, match_number)
+  CONSTRAINT matches_pkey PRIMARY KEY (id)
 );
 CREATE TABLE public.games (
   id integer GENERATED ALWAYS AS IDENTITY NOT NULL,
   match_id integer NOT NULL,
-  game_number smallint NOT NULL CHECK (game_number >= 1 AND game_number <= 5),
+  game_number smallint NOT NULL CHECK (game_number >= 1 AND game_number <= 3),
   CONSTRAINT games_pkey PRIMARY KEY (id),
   CONSTRAINT games_match_id_fkey FOREIGN KEY (match_id) REFERENCES public.matches(id)
 );

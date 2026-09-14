@@ -13,8 +13,12 @@ Built with **Next.js**, **Tailwind CSS**, **Supabase**, and **Claude** (scoreboa
 - Per-match and per-game stat tables, each led by a Most Valuable Player card and a
   carousel of category leaders (least deaths, most kills, assists, first bloods, plants, defuses).
 - Season switcher in the header (only lists seasons that exist in the database).
-- Admin area (`/admin`, Supabase auth) — enter a game's scores by uploading a screenshot of the
-  in-game scoreboard; Claude reads the 10 rows, they're matched to known players, and saved.
+- Light/dark theme toggle and English/French language toggle, both in the header — the public
+  site (leaderboard, matches, match/game detail) is fully translated; the admin tool is English only.
+- Admin area (`/admin`, Supabase auth) — enter a game's 10 player rows by hand: pick each
+  player from a dropdown, or tick "New" to register one on the spot by username. One-click
+  "Check bonuses" fills every bonus but victory. Uploading a screenshot for Claude to read
+  instead is built in but off by default (feature flag).
 
 ## Scoring formula
 
@@ -39,7 +43,8 @@ A victory bonus applies only to players marked as winning that game — if no re
 - **Next.js 16** (App Router, TypeScript, React 19)
 - **Tailwind CSS v4**
 - **Supabase** (PostgreSQL, auth, RLS) via `@supabase/ssr`
-- **`@anthropic-ai/sdk`** — `claude-opus-5` vision reads the scoreboard screenshot
+- **`@anthropic-ai/sdk`** — `claude-opus-5` vision can read the scoreboard screenshot
+  (feature-flagged off by default, see `src/constants/flags.ts`)
 
 ## Project structure
 
@@ -48,19 +53,31 @@ src/
   app/
     page.tsx                       — season leaderboard + MVP banner + match tabs
     matches/                       — match grid
-    matches/[season]/[matchId]/    — match detail (all 3 games combined)
+    matches/[season]/[matchId]/    — match detail (all games combined, 2–5 per match)
       [game]/                      — individual game stats
-    admin/                         — score-entry form (page.tsx) + saveGameStats (actions.ts)
+    admin/                         — score-entry form (page.tsx) + save/load/delete actions.ts
     api/admin/scan-scoreboard/     — POST an image, Claude returns the 10 rows
   components/
     NavLinks.tsx                   — nav bar + season dropdown
     AdminMenu.tsx                  — login modal (browser Supabase client)
     ScoreEntry.tsx                 — the admin score-entry form
+    StatLeaders.tsx                — category-leader carousel (match/game detail header)
+    ThemeToggle.tsx, LanguageToggle.tsx
   constants/scoring.ts             — POINTS_PER_BONUS, POINTS_PER_WIN, computeScore()
+  constants/flags.ts               — SCOREBOARD_SCAN_ENABLED feature flag
+  i18n/dictionary.ts, locale.ts    — EN/FR strings + cookie-based locale
   lib/supabase/                    — client / server factories + auth.ts (getAdminUser)
   services/                        — data access (matches, games, gameStats, matchScores, players)
   types/                           — TypeScript domain model
 ```
+
+## Theme & language
+
+All colors are CSS variables (`src/app/globals.css`, dark by default, `[data-theme="light"]`
+for the alternate palette) — components reference `var(--token)`, never a literal hex.
+`ThemeToggle` flips `data-theme` on `<html>` and remembers it in `localStorage`. Language is a
+`lang` cookie (`en`/`fr`, read server-side in `src/i18n/locale.ts`) so translated text renders
+correctly in Server Components; `LanguageToggle` sets the cookie and refreshes.
 
 ## Getting started
 
@@ -72,7 +89,7 @@ src/
    ```env
    NEXT_PUBLIC_SUPABASE_URL=https://your-project-ref.supabase.co
    NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=your-anon-key
-   ANTHROPIC_API_KEY=sk-ant-...        # only needed for the admin scoreboard scan
+   ANTHROPIC_API_KEY=sk-ant-...        # only needed if SCOREBOARD_SCAN_ENABLED is turned on
    ```
 3. Run the Supabase setup once: paste `misc/admin-setup.sql` into the Supabase SQL editor
    (creates the profile trigger, RLS policies, and the admin write access).

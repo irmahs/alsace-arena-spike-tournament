@@ -1,8 +1,9 @@
 'use client';
 
-import { useMemo, useRef, useState, useTransition } from 'react';
+import { useEffect, useMemo, useRef, useState, useTransition } from 'react';
 import { computeScore } from '@/constants/scoring';
-import { saveGameStats, type SaveRow } from '@/app/admin/actions';
+import { SCOREBOARD_SCAN_ENABLED } from '@/constants/flags';
+import { saveGameStats, loadGameStats, deleteGameStats, type SaveRow } from '@/app/admin/actions';
 import type { Match } from '@/types';
 import type { PlayerRef } from '@/services/players';
 
@@ -20,8 +21,9 @@ type ScannedPlayer = {
 
 type Row = {
   key: string;
-  name: string;
+  isNew: boolean;
   player_id: string;
+  newUsername: string;
   acs: number;
   kills: number;
   deaths: number;
@@ -57,27 +59,27 @@ const BONUS_FIELDS = [
   ['bonus_defuse', 'Most defuses'],
 ] as const;
 
-const label = 'text-[11px] font-semibold uppercase tracking-[.06em] text-[#5a5f78]';
+const label = 'text-[11px] font-semibold uppercase tracking-[.06em] text-[var(--text-muted)]';
 const select =
-  'rounded-md border border-[#1e2130] bg-[#111420] px-2.5 py-2 text-[13px] text-[#e2e4ea] [color-scheme:dark] focus:border-[#ff465555] focus:outline-none disabled:opacity-40';
+  'rounded-md border border-[var(--border)] bg-[var(--surface)] px-2.5 py-2 text-[13px] text-[var(--text)] [color-scheme:var(--scheme)] focus:border-[var(--accent-55)] focus:outline-none disabled:opacity-40';
+// Spinner arrows for type="number" are hidden globally in globals.css.
 const cellInput =
-  'w-12 rounded-md border border-[#1e2130] bg-[#111420] px-1 py-1.5 text-center text-[12px] text-[#e2e4ea] [color-scheme:dark] focus:outline-none';
+  'w-12 rounded-md border border-[var(--border)] bg-[var(--surface)] px-1 py-1.5 text-center text-[12px] text-[var(--text)] [color-scheme:var(--scheme)] focus:outline-none';
 const th =
-  'px-1.5 pb-2 text-[9px] font-semibold uppercase tracking-[.08em] text-[#2a2f44] border-b border-[#1e2130] whitespace-nowrap';
+  'px-1.5 pb-2 text-[9px] font-semibold uppercase tracking-[.08em] text-[var(--border-strong)] border-b border-[var(--border)] whitespace-nowrap';
 
 function matchPlayer(name: string, players: PlayerRef[]): PlayerRef | null {
   const n = name.trim().toLowerCase();
   if (!n) return null;
-  return (
-    players.find((p) => p.username.toLowerCase() === n || p.in_game_name.toLowerCase() === n) ?? null
-  );
+  return players.find((p) => p.username.toLowerCase() === n) ?? null;
 }
 
 function emptyRow(): Row {
   return {
     key: crypto.randomUUID(),
-    name: '',
+    isNew: false,
     player_id: '',
+    newUsername: '',
     acs: 0,
     kills: 0,
     deaths: 0,
@@ -95,15 +97,17 @@ function emptyRow(): Row {
   };
 }
 
-/** Pre-tick least-deaths / most-assists / most-plants / most-defuses. First blood stays manual. */
+/** Ticks every bonus except victory: first blood / least deaths / most assists / most plants / most defuses. */
 function withAutoBonuses(rows: Row[]): Row[] {
   if (rows.length === 0) return rows;
+  const maxFirstBloods = Math.max(...rows.map((r) => r.first_bloods));
   const minDeaths = Math.min(...rows.map((r) => r.deaths));
   const maxAssists = Math.max(...rows.map((r) => r.assists));
   const maxPlants = Math.max(...rows.map((r) => r.plants));
   const maxDefuses = Math.max(...rows.map((r) => r.defuses));
   return rows.map((r) => ({
     ...r,
+    bonus_fb: maxFirstBloods > 0 && r.first_bloods === maxFirstBloods,
     bonus_death: r.deaths === minDeaths,
     bonus_assist: maxAssists > 0 && r.assists === maxAssists,
     bonus_plant: maxPlants > 0 && r.plants === maxPlants,
@@ -129,9 +133,11 @@ function rowPoints(r: Row): number {
 export default function ScoreEntry({
   matches,
   players,
+  playersError,
 }: {
   matches: Match[];
   players: PlayerRef[];
+  playersError?: string | null;
 }) {
   const maxSeason = useMemo(
     () => matches.reduce((max, m) => Math.max(max, m.match_season ?? 0), 0) || 1,
@@ -146,19 +152,76 @@ export default function ScoreEntry({
   const [matchNumber, setMatchNumber] = useState<number | ''>('');
   const [gameNumber, setGameNumber] = useState<number | ''>('');
 
-  const [rows, setRows] = useState<Row[]>([]);
+  const [rows, setRows] = useState<Row[]>(() => Array.from({ length: 10 }, emptyRow));
   const [scanning, setScanning] = useState(false);
   const [scanError, setScanError] = useState<string | null>(null);
   const [saveMsg, setSaveMsg] = useState<{ ok: boolean; text: string } | null>(null);
   const [saving, startSaving] = useTransition();
+  const [deleting, startDeleting] = useTransition();
+  const [gameExists, setGameExists] = useState(false);
+  const [loadingExisting, setLoadingExisting] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
 
-  const unmatched = rows.filter((r) => !r.player_id).length;
+  const incomplete = rows.filter((r) => (r.isNew ? !r.newUsername.trim() : !r.player_id)).length;
   const ready = season !== '' && matchNumber !== '' && gameNumber !== '' && rows.length > 0;
+
+  // Selecting a full season/match/game loads whatever is already saved for it, so editing
+  // starts from the real data instead of blank rows you'd silently overwrite on Save.
+  useEffect(() => {
+    if (season === '' || matchNumber === '' || gameNumber === '') return;
+    let cancelled = false;
+    setLoadingExisting(true);
+    setSaveMsg(null);
+    loadGameStats({ season, matchNumber, gameNumber }).then((result) => {
+      if (cancelled) return;
+      setLoadingExisting(false);
+      if (result.error) {
+        setGameExists(false);
+        setSaveMsg({ ok: false, text: `Could not load existing data: ${result.error}` });
+        return;
+      }
+      if (result.rows.length > 0) {
+        const loaded = result.rows.map((r) => ({ ...emptyRow(), ...r }));
+        const padding = Array.from({ length: Math.max(0, 10 - loaded.length) }, emptyRow);
+        setRows([...loaded, ...padding]);
+        setGameExists(true);
+      } else {
+        setRows(Array.from({ length: 10 }, emptyRow));
+        setGameExists(false);
+      }
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [season, matchNumber, gameNumber]);
 
   function patch(key: string, next: Partial<Row>) {
     setRows((rs) => rs.map((r) => (r.key === key ? { ...r, ...next } : r)));
     setSaveMsg(null);
+  }
+
+  function checkBonuses() {
+    setRows((rs) => withAutoBonuses(rs));
+    setSaveMsg(null);
+  }
+
+  function deleteGame() {
+    if (season === '' || matchNumber === '' || gameNumber === '') return;
+    const confirmed = window.confirm(
+      `Delete all saved stats for season ${season}, match ${matchNumber}, game ${gameNumber}? This cannot be undone.`,
+    );
+    if (!confirmed) return;
+    setSaveMsg(null);
+    startDeleting(async () => {
+      const result = await deleteGameStats({ season, matchNumber, gameNumber });
+      if (result.ok) {
+        setRows(Array.from({ length: 10 }, emptyRow));
+        setGameExists(false);
+        setSaveMsg({ ok: true, text: `Deleted season ${season}, match ${matchNumber}, game ${gameNumber}.` });
+      } else {
+        setSaveMsg({ ok: false, text: result.error ?? 'Delete failed.' });
+      }
+    });
   }
 
   async function onFile(e: React.ChangeEvent<HTMLInputElement>) {
@@ -181,8 +244,9 @@ export default function ScoreEntry({
         const hit = matchPlayer(p.name, players);
         return {
           ...emptyRow(),
-          name: p.name,
+          isNew: !hit,
           player_id: hit?.id ?? '',
+          newUsername: hit ? '' : p.name,
           acs: p.combat_score ?? 0,
           kills: p.kills ?? 0,
           deaths: p.deaths ?? 0,
@@ -204,7 +268,8 @@ export default function ScoreEntry({
   function save() {
     setSaveMsg(null);
     const payload: SaveRow[] = rows.map((r) => ({
-      player_id: r.player_id,
+      player_id: r.isNew ? '' : r.player_id,
+      new_player: r.isNew ? { username: r.newUsername.trim() } : undefined,
       acs: r.acs,
       kills: r.kills,
       deaths: r.deaths,
@@ -227,6 +292,7 @@ export default function ScoreEntry({
         gameNumber: Number(gameNumber),
         rows: payload,
       });
+      if (result.ok) setGameExists(true);
       setSaveMsg(
         result.ok
           ? {
@@ -240,6 +306,18 @@ export default function ScoreEntry({
 
   return (
     <div className="mt-8 flex flex-col gap-6">
+      {playersError ? (
+        <p className="rounded-md border border-[var(--accent-33)] bg-[var(--accent-0f)] px-3 py-2 text-[12px] text-[var(--accent)]">
+          Could not load players: {playersError}
+        </p>
+      ) : players.length === 0 ? (
+        <p className="rounded-md border border-[var(--gold-33)] bg-[var(--gold-0f)] px-3 py-2 text-[12px] text-[var(--gold)]">
+          No players found in the database. Check the <code>players</code> table and its RLS
+          policies (see <code>misc/admin-setup.sql</code> step 9) — the "New" checkbox on a row
+          still lets you register one.
+        </p>
+      ) : null}
+
       {/* Selectors */}
       <div className="flex flex-wrap items-end gap-4">
         <div className="flex flex-col gap-1.5">
@@ -290,107 +368,123 @@ export default function ScoreEntry({
           </select>
         </div>
 
-        <div className="flex flex-col gap-1.5">
-          <span className={label}>Score picture</span>
-          <div className="flex gap-2">
-            <button
-              type="button"
-              onClick={() => fileRef.current?.click()}
-              disabled={gameNumber === '' || scanning}
-              className="rounded-md bg-[#ff4655] px-3.5 py-2 text-[13px] font-semibold uppercase tracking-[.04em] text-white transition-colors hover:bg-[#ff5b68] disabled:opacity-40"
-            >
-              {scanning ? 'Scanning…' : 'Upload & scan'}
-            </button>
-            <button
-              type="button"
-              onClick={() => {
-                setRows((rs) => [...rs, emptyRow()]);
-                setSaveMsg(null);
-              }}
-              disabled={gameNumber === ''}
-              className="rounded-md border border-[#1e2130] px-3 py-2 text-[13px] font-medium text-[#8b8fa8] transition-colors hover:border-[#2a2f44] hover:text-white disabled:opacity-40"
-            >
-              + Row
-            </button>
+        {SCOREBOARD_SCAN_ENABLED && (
+          <div className="flex flex-col gap-1.5">
+            <span className={label}>Score picture</span>
+            <div className="flex gap-2">
+              <button
+                type="button"
+                onClick={() => fileRef.current?.click()}
+                disabled={gameNumber === '' || scanning}
+                className="rounded-md bg-[var(--accent)] px-3.5 py-2 text-[13px] font-semibold uppercase tracking-[.04em] text-white transition-colors hover:bg-[var(--accent-hover)] disabled:opacity-40"
+              >
+                {scanning ? 'Scanning…' : 'Upload & scan'}
+              </button>
+            </div>
+            <input ref={fileRef} type="file" accept="image/png,image/jpeg,image/webp,image/gif" hidden onChange={onFile} />
           </div>
-          <input ref={fileRef} type="file" accept="image/png,image/jpeg,image/webp,image/gif" hidden onChange={onFile} />
-        </div>
+        )}
       </div>
 
       {scanError && (
-        <p className="rounded-md border border-[#ff465533] bg-[#ff46550f] px-3 py-2 text-[12px] text-[#ff4655]">
+        <p className="rounded-md border border-[var(--accent-33)] bg-[var(--accent-0f)] px-3 py-2 text-[12px] text-[var(--accent)]">
           {scanError}
         </p>
       )}
 
       {rows.length > 0 && (
         <>
-          <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-[12px] text-[#5a5f78]">
+          <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-[12px] text-[var(--text-muted)]">
             <span>{rows.length} rows</span>
-            {unmatched > 0 && (
-              <span className="text-[#ff4655]">⚠ {unmatched} unmatched player{unmatched > 1 ? 's' : ''}</span>
+            {loadingExisting && <span className="text-[var(--gold)]">Loading existing entry…</span>}
+            {!loadingExisting && gameExists && (
+              <span className="text-[var(--green)]">● Editing a saved entry — Save overwrites it, Delete removes it.</span>
             )}
-            <span>Bonuses were auto-filled from the numbers — adjust before saving.</span>
-            <span>No win ticked = no victory bonus.</span>
+            {incomplete > 0 && (
+              <span className="text-[var(--accent)]">⚠ {incomplete} row{incomplete > 1 ? 's' : ''} need a player</span>
+            )}
+            <span>Fill in the stats, then "Calculate bonuses" auto-ticks everything except victory.</span>
+            <span>Bonus boxes below are read-only — use the button. Win stays manual; none ticked = no victory bonus.</span>
           </div>
 
           <div className="overflow-x-auto">
             <table className="min-w-[1100px] border-collapse">
               <thead>
                 <tr>
-                  <th className={`${th} text-left`}>Player (scanned)</th>
-                  <th className={`${th} text-left`}>Linked player</th>
+                  <th className={`${th} text-left`}>Player</th>
                   {NUM_FIELDS.map(([, h]) => (
                     <th key={h} className={`${th} w-14`}>
                       {h}
                     </th>
                   ))}
-                  <th className={`${th} w-12 border-l border-[#1e2130]`}>Win</th>
+                  <th className={`${th} w-12 border-l border-[var(--border)]`}>Win</th>
                   {BONUS_FIELDS.map(([, h]) => (
                     <th key={h} className={`${th} w-14`}>
                       {h}
                     </th>
                   ))}
-                  <th className={`${th} w-14 border-l border-[#1e2130]`}>Pts</th>
+                  <th className={`${th} w-14 border-l border-[var(--border)]`}>Pts</th>
                   <th className={th} />
                 </tr>
               </thead>
               <tbody>
                 {rows.map((r) => {
-                  const flagged = !r.player_id;
+                  const flagged = r.isNew ? !r.newUsername.trim() : !r.player_id;
+                  // A player picked in another row drops out of this row's list.
+                  const takenElsewhere = new Set(
+                    rows.filter((other) => other.key !== r.key && !other.isNew && other.player_id)
+                      .map((other) => other.player_id),
+                  );
+                  const availablePlayers = players.filter(
+                    (p) => p.id === r.player_id || !takenElsewhere.has(p.id),
+                  );
                   return (
-                    <tr key={r.key} className="border-b border-[#111420]">
-                      <td className="py-1.5 pr-2">
-                        <div className="flex items-center gap-1.5">
-                          {flagged && <span title="No player match">⚠</span>}
-                          <input
-                            value={r.name}
-                            onChange={(e) => {
-                              const name = e.target.value;
-                              const hit = matchPlayer(name, players);
-                              patch(r.key, { name, player_id: hit?.id ?? r.player_id });
-                            }}
-                            className={`w-40 rounded-md border bg-[#111420] px-2 py-1.5 text-[12px] text-[#e2e4ea] focus:outline-none ${
-                              flagged ? 'border-[#ff465577]' : 'border-[#1e2130]'
-                            }`}
-                          />
+                    <tr key={r.key} className="border-b border-[var(--surface)]">
+                      <td className="py-1.5 pr-2 align-top">
+                        <div className="flex items-start gap-2">
+                          <label className="flex items-center gap-1 pt-2 text-[10px] text-[var(--text-muted)] whitespace-nowrap">
+                            <input
+                              type="checkbox"
+                              checked={r.isNew}
+                              onChange={(e) =>
+                                patch(r.key, {
+                                  isNew: e.target.checked,
+                                  player_id: '',
+                                  newUsername: '',
+                                })
+                              }
+                            />
+                            New
+                          </label>
+                          {r.isNew ? (
+                            <input
+                              value={r.newUsername}
+                              placeholder="Username"
+                              onChange={(e) => patch(r.key, { newUsername: e.target.value })}
+                              className={`w-40 rounded-md border bg-[var(--surface)] px-2 py-1.5 text-[12px] text-[var(--text)] focus:outline-none ${
+                                flagged ? 'border-[var(--accent-77)]' : 'border-[var(--border)]'
+                              }`}
+                            />
+                          ) : (
+                            <div className="flex items-center gap-1.5">
+                              {flagged && <span title="Pick a player">⚠</span>}
+                              <select
+                                value={r.player_id}
+                                onChange={(e) => patch(r.key, { player_id: e.target.value })}
+                                className={`w-40 rounded-md border bg-[var(--surface)] px-2 py-1.5 text-[12px] text-[var(--text)] focus:outline-none ${
+                                  flagged ? 'border-[var(--accent-77)]' : 'border-[var(--border)]'
+                                }`}
+                              >
+                                <option value="">— pick player —</option>
+                                {availablePlayers.map((p) => (
+                                  <option key={p.id} value={p.id}>
+                                    {p.username}
+                                  </option>
+                                ))}
+                              </select>
+                            </div>
+                          )}
                         </div>
-                      </td>
-                      <td className="py-1.5 pr-2">
-                        <select
-                          value={r.player_id}
-                          onChange={(e) => patch(r.key, { player_id: e.target.value })}
-                          className={`w-44 rounded-md border bg-[#111420] px-2 py-1.5 text-[12px] text-[#e2e4ea] focus:outline-none ${
-                            flagged ? 'border-[#ff465577]' : 'border-[#1e2130]'
-                          }`}
-                        >
-                          <option value="">— pick —</option>
-                          {players.map((p) => (
-                            <option key={p.id} value={p.id}>
-                              {p.username} ({p.in_game_name})
-                            </option>
-                          ))}
-                        </select>
                       </td>
                       {NUM_FIELDS.map(([k]) => (
                         <td key={k} className="px-1 py-1.5 text-center">
@@ -398,11 +492,12 @@ export default function ScoreEntry({
                             type="number"
                             value={r[k]}
                             onChange={(e) => patch(r.key, { [k]: Number(e.target.value) || 0 } as Partial<Row>)}
+                            onFocus={(e) => e.target.select()}
                             className={cellInput}
                           />
                         </td>
                       ))}
-                      <td className="border-l border-[#1e2130] px-1 py-1.5 text-center">
+                      <td className="border-l border-[var(--border)] px-1 py-1.5 text-center">
                         <input
                           type="checkbox"
                           checked={r.win}
@@ -411,14 +506,10 @@ export default function ScoreEntry({
                       </td>
                       {BONUS_FIELDS.map(([k]) => (
                         <td key={k} className="px-1 py-1.5 text-center">
-                          <input
-                            type="checkbox"
-                            checked={r[k]}
-                            onChange={(e) => patch(r.key, { [k]: e.target.checked } as Partial<Row>)}
-                          />
+                          <input type="checkbox" checked={r[k]} disabled readOnly />
                         </td>
                       ))}
-                      <td className="border-l border-[#1e2130] px-1 py-1.5 text-center font-display text-[12px] font-bold text-white">
+                      <td className="border-l border-[var(--border)] px-1 py-1.5 text-center font-display text-[12px] font-bold text-[var(--text-strong)]">
                         {rowPoints(r)}
                       </td>
                       <td className="px-1 py-1.5 text-center">
@@ -428,7 +519,7 @@ export default function ScoreEntry({
                             setRows((rs) => rs.filter((x) => x.key !== r.key));
                             setSaveMsg(null);
                           }}
-                          className="text-[#5a5f78] hover:text-[#ff4655]"
+                          className="text-[var(--text-muted)] hover:text-[var(--accent)]"
                           aria-label="Remove row"
                         >
                           ×
@@ -441,28 +532,44 @@ export default function ScoreEntry({
             </table>
           </div>
 
-          <div className="flex items-center gap-4">
+          <div className="flex flex-wrap items-center gap-4">
+            <button
+              type="button"
+              onClick={checkBonuses}
+              className="rounded-md border border-[var(--border)] px-3.5 py-2.5 text-[13px] font-medium text-[var(--text-subtle)] transition-colors hover:border-[var(--border-strong)] hover:text-[var(--text-strong)]"
+            >
+              Calculate bonuses
+            </button>
+            <div className="w-px self-stretch bg-[var(--border)]" />
             <button
               type="button"
               onClick={save}
-              disabled={!ready || saving}
-              className="rounded-md bg-[#ff4655] px-4 py-2.5 text-[13px] font-semibold uppercase tracking-[.04em] text-white transition-colors hover:bg-[#ff5b68] disabled:opacity-40"
+              disabled={!ready || saving || deleting}
+              className="rounded-md bg-[var(--accent)] px-4 py-2.5 text-[13px] font-semibold uppercase tracking-[.04em] text-white transition-colors hover:bg-[var(--accent-hover)] disabled:opacity-40"
             >
-              {saving ? 'Saving…' : 'Save game'}
+              {saving ? 'Saving…' : gameExists ? 'Save changes' : 'Save game'}
+            </button>
+            <button
+              type="button"
+              onClick={deleteGame}
+              disabled={!ready || !gameExists || saving || deleting}
+              className="rounded-md border border-[var(--accent-55)] px-4 py-2.5 text-[13px] font-semibold uppercase tracking-[.04em] text-[var(--accent)] transition-colors hover:bg-[var(--accent-11)] disabled:opacity-30"
+            >
+              {deleting ? 'Deleting…' : 'Delete game'}
             </button>
             <button
               type="button"
               onClick={() => {
-                setRows([]);
+                setRows(Array.from({ length: 10 }, emptyRow));
                 setSaveMsg(null);
                 setScanError(null);
               }}
-              className="text-[12px] font-medium text-[#8b8fa8] hover:text-white"
+              className="text-[12px] font-medium text-[var(--text-subtle)] hover:text-[var(--text-strong)]"
             >
-              Clear
+              Reset rows
             </button>
             {saveMsg && (
-              <span className={`text-[12px] ${saveMsg.ok ? 'text-[#4ade80]' : 'text-[#ff4655]'}`}>
+              <span className={`text-[12px] ${saveMsg.ok ? 'text-[var(--green)]' : 'text-[var(--accent)]'}`}>
                 {saveMsg.text}
               </span>
             )}

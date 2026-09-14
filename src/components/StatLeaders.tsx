@@ -12,10 +12,10 @@ export default function StatLeaders({ items }: { items: Leader[] }) {
   const clamped = Math.min(start, maxStart);
 
   const arrow =
-    'shrink-0 rounded-md border border-[#1e2130] px-2 py-3 text-[16px] leading-none text-[#8b8fa8] transition-colors hover:border-[#2a2f44] hover:text-white disabled:opacity-25';
+    'shrink-0 rounded-md border border-[var(--border)] px-2 py-3 text-[16px] leading-none text-[var(--text-subtle)] transition-colors hover:border-[var(--border-strong)] hover:text-[var(--text-strong)] disabled:opacity-25';
 
   return (
-    <div className="flex items-stretch gap-2 px-6 py-4 border-b border-[#1e2130]">
+    <div className="flex items-stretch gap-2 px-6 py-4 border-b border-[var(--border)]">
       <button
         type="button"
         onClick={() => setStart(Math.max(0, clamped - 1))}
@@ -33,9 +33,9 @@ export default function StatLeaders({ items }: { items: Leader[] }) {
         >
           {items.map(({ label, name }) => (
             <div key={label} className="shrink-0 basis-1/3 px-1">
-              <div className="min-w-0 rounded-lg bg-[#111420] px-3.5 py-2.5">
-                <div className="truncate font-display text-[15px] font-bold leading-tight text-white">{name}</div>
-                <div className="mt-1 text-[10px] uppercase tracking-[.07em] text-[#3d4260]">{label}</div>
+              <div className="min-w-0 rounded-lg bg-[var(--surface)] px-3.5 py-2.5">
+                <div className="truncate font-display text-[15px] font-bold leading-tight text-[var(--text-strong)]">{name}</div>
+                <div className="mt-1 text-[10px] uppercase tracking-[.07em] text-[var(--text-faint)]">{label}</div>
               </div>
             </div>
           ))}

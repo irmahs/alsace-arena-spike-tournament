@@ -6,7 +6,7 @@
 - [x] Next.js project structure (services, lib, types, constants)
 - [x] Navigation with season dropdown (only seasons present in the DB)
 - [x] Match list + sidebar with status (done / upcoming)
-- [x] Match detail page — aggregated stats across all 3 games
+- [x] Match detail page — aggregated stats across all games in a match
 - [x] Per-game stats page with player performance table
 - [x] Scoring formula + `computeScore()` helper
 - [x] Bonus icons + legend (first blood, least deaths, most assists, plants, defuses, victory)
@@ -17,10 +17,20 @@
 - [x] Variable games per match (2–5), data-driven game tabs
 - [x] Removed the "final match" concept — is_final dropped, match 9 removed, seasons are 1–8
 - [x] Admin auth (Supabase login modal + `is_admin` guard on `/admin`)
-- [x] Admin score entry — season/match/game pickers, scan a scoreboard screenshot with Claude
-      vision, editable 10-player table with player-name matching + flags, auto bonuses, save
+- [x] Admin score entry — season/match/game pickers, 10 pre-filled rows, player dropdown
+      (excludes players already picked in another row) or inline "New player" (username only —
+      `players` has no `in_game_name`/nickname column), no spinner arrows on stat inputs,
+      one-click "Calculate bonuses" (the 5 non-victory bonus boxes are view-only), save
+- [x] Admin score editing/deleting — picking a saved season+match+game loads its real
+      `game_stats` into the form ("Save changes" replaces them); "Delete game" removes the
+      game + its stats after a confirm
+- [x] Scoreboard-screenshot scan (Claude vision) — built, feature-flagged off
+      (`SCOREBOARD_SCAN_ENABLED` in `src/constants/flags.ts`)
 - [x] Deployment — Vercel (https://alsace-arena-spike-tournament.vercel.app/)
 - [x] Cloud dev container (`.devcontainer/`)
+- [x] Light/dark theme toggle — every color is a CSS var (`globals.css`), no more hard-coded hex
+- [x] English/French language toggle — cookie-based locale (`src/i18n/`), public pages
+      translated; admin login + score-entry form left English-only (scoped out)
 
 ## In progress
 
@@ -29,8 +39,8 @@
 ## To do
 
 - [ ] Match dates — display and manage scheduled dates per match
-- [ ] Admin — score *editing* (load an existing game back into the form), player availability,
-      player CRUD, retain the uploaded screenshot
+- [ ] Admin — player availability, player CRUD (edit/delete a player), retain the uploaded
+      screenshot, delete an entire match (not just one game), translate the admin UI to FR too
 - [ ] Migrate `matchScores.getPlayerTotals` + the per-game page onto `computeScore()`
 - [ ] Simplify home page URL — `/?currentSeason=8&tab=1&matchId=1&matchSeason=8` has redundant
       params, should collapse to something like `/?season=8&match=1`

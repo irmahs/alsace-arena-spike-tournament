@@ -3,12 +3,11 @@
 import Link from 'next/link';
 import { usePathname, useSearchParams, useRouter } from 'next/navigation';
 import { Suspense } from 'react';
+import { getDictionary, type Locale } from '@/i18n/dictionary';
 
-const links = [
-  { href: '/', label: 'Leaderboard', exact: true },
-];
-
-function NavLinksInner({ seasons }: { seasons: number[] }) {
+function NavLinksInner({ seasons, locale }: { seasons: number[]; locale: Locale }) {
+  const t = getDictionary(locale);
+  const links = [{ href: '/', label: t.nav.leaderboard, exact: true }];
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const router = useRouter();
@@ -27,11 +26,11 @@ function NavLinksInner({ seasons }: { seasons: number[] }) {
         <select
           value={selectedSeason}
           onChange={handleSeasonChange}
-          className="text-[12px] font-medium bg-[#111420] border border-[#1e2130] text-[#8b8fa8] rounded-md px-2.5 py-1.5 focus:outline-none focus:border-[#2a2f44] hover:border-[#2a2f44] cursor-pointer"
+          className="text-[12px] font-medium bg-[var(--surface)] border border-[var(--border)] text-[var(--text-subtle)] rounded-md px-2.5 py-1.5 focus:outline-none focus:border-[var(--border-strong)] hover:border-[var(--border-strong)] cursor-pointer"
         >
           {seasons.map((s) => (
             <option key={s} value={s}>
-              Season {s}
+              {t.season(s)}
             </option>
           ))}
         </select>
@@ -46,8 +45,8 @@ function NavLinksInner({ seasons }: { seasons: number[] }) {
               href={href}
               className={`text-[13px] font-medium px-3.5 py-1.5 rounded-md transition-colors ${
                 active
-                  ? 'text-white bg-[#1a1e2c]'
-                  : 'text-[#8b8fa8] hover:text-white hover:bg-[#1a1e2c]'
+                  ? 'text-[var(--text-strong)] bg-[var(--surface-strong)]'
+                  : 'text-[var(--text-subtle)] hover:text-[var(--text-strong)] hover:bg-[var(--surface-strong)]'
               }`}
             >
               {label}
@@ -59,18 +58,17 @@ function NavLinksInner({ seasons }: { seasons: number[] }) {
   );
 }
 
-export default function NavLinks({ seasons }: { seasons: number[] }) {
+export default function NavLinks({ seasons, locale }: { seasons: number[]; locale: Locale }) {
+  const t = getDictionary(locale);
   return (
     <Suspense fallback={
       <div className="flex gap-1">
-        {links.map(({ label }) => (
-          <span key={label} className="text-[13px] font-medium px-3.5 py-1.5 rounded-md text-[#3d4260]">
-            {label}
-          </span>
-        ))}
+        <span className="text-[13px] font-medium px-3.5 py-1.5 rounded-md text-[var(--text-faint)]">
+          {t.nav.leaderboard}
+        </span>
       </div>
     }>
-      <NavLinksInner seasons={seasons} />
+      <NavLinksInner seasons={seasons} locale={locale} />
     </Suspense>
   );
 }

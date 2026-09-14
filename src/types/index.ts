@@ -4,15 +4,6 @@ export type RankRow = {
   rank_value: number | null;
 };
 
-export type Player = {
-  id: string;
-  username: string;
-  in_game_name: string;
-  discord_name: string | null;
-  current_rank_id: number | null;
-  ranks: Pick<RankRow, 'rank_name' | 'rank_value'>[] | null;
-};
-
 export type Match = {
   id: number;
   match_number: number;
@@ -29,7 +20,6 @@ export type Game = {
 export type GamePlayerStat = {
   player_id: string;
   username: string;
-  in_game_name: string;
   acs: number;
   kills: number;
   deaths: number;

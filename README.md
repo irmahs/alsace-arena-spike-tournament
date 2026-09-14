@@ -100,3 +100,22 @@ correctly in Server Components; `LanguageToggle` sets the cookie and refreshes.
 5. Open [http://localhost:3000](http://localhost:3000).
 
 A cloud dev container is defined in `.devcontainer/` (GitHub Codespaces or any devcontainer host).
+
+## Creating a new admin
+
+There's no sign-up flow — admins are created by hand in Supabase, then promoted with SQL:
+
+1. Supabase dashboard → **Authentication → Users → Add user** → enter their email + password,
+   tick **Auto Confirm User**. (A `public.profiles` row is created for them automatically.)
+2. In the Supabase **SQL editor**, run:
+   ```sql
+   update public.profiles p
+   set is_admin = true
+   from auth.users u
+   where u.id = p.id
+     and u.email = 'their-email@example.com';
+   ```
+3. They can now sign in from the **Admin** button in the header and reach `/admin`.
+
+(See `misc/admin-setup.sql`, steps 3–4, for the same instructions alongside the rest of the
+one-time RLS/schema setup.)

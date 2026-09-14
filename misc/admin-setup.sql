@@ -42,14 +42,14 @@ create policy "read own profile"
 -- 3. Create the admin user:
 --    Supabase dashboard -> Authentication -> Users -> "Add user"
 --    -> enter email + password, tick "Auto Confirm User".
---    (The trigger above creates their profiles row automatically.)
+--    Copy their UUID from the Users list.
 
--- 4. Promote that user to admin (repeat per admin, by email):
-update public.profiles p
-set is_admin = true
-from auth.users u
-where u.id = p.id
-  and u.email = 'you@example.com';
+-- 4. Promote that user to admin (repeat per admin, with their UUID from step 3).
+--    Uses insert-on-conflict rather than a plain update so it works whether or
+--    not the trigger in step 1 has already created their profiles row.
+insert into public.profiles (id, is_admin)
+values ('paste-the-uuid-here', true)
+on conflict (id) do update set is_admin = true;
 
 -- 5. Let admins write scores.  The score-entry form inserts/deletes rows in
 --    public.games and public.game_stats; without these policies RLS blocks it.

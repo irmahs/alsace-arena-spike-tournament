@@ -2,6 +2,7 @@
 
 import { useRef, useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
+import { IconEye, IconEyeOff } from '@tabler/icons-react';
 import { createClient } from '@/lib/supabase/client';
 
 const badgeClass =
@@ -12,6 +13,7 @@ export default function AdminMenu({ isAdmin }: { isAdmin: boolean }) {
   const router = useRouter();
   const [error, setError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
+  const [showPassword, setShowPassword] = useState(false);
 
   if (isAdmin) {
     return (
@@ -23,6 +25,7 @@ export default function AdminMenu({ isAdmin }: { isAdmin: boolean }) {
 
   function open() {
     setError(null);
+    setShowPassword(false);
     dialogRef.current?.showModal();
   }
 
@@ -109,13 +112,23 @@ export default function AdminMenu({ isAdmin }: { isAdmin: boolean }) {
 
             <label className="flex flex-col gap-1.5">
               <span className="text-[11px] font-semibold uppercase tracking-[.06em] text-[var(--text-muted)]">Password</span>
-              <input
-                type="password"
-                name="password"
-                autoComplete="current-password"
-                required
-                className="rounded-md border border-[var(--border)] bg-[var(--surface)] px-3 py-2.5 text-[13px] text-[var(--text)] focus:border-[var(--accent-55)] focus:outline-none"
-              />
+              <div className="relative">
+                <input
+                  type={showPassword ? 'text' : 'password'}
+                  name="password"
+                  autoComplete="current-password"
+                  required
+                  className="w-full rounded-md border border-[var(--border)] bg-[var(--surface)] px-3 py-2.5 pr-10 text-[13px] text-[var(--text)] focus:border-[var(--accent-55)] focus:outline-none"
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword((v) => !v)}
+                  className="absolute inset-y-1 right-1 flex w-7 items-center justify-center rounded text-[var(--text-muted)] hover:text-[var(--text-strong)]"
+                  aria-label={showPassword ? 'Hide password' : 'Show password'}
+                >
+                  {showPassword ? <IconEyeOff size={16} /> : <IconEye size={16} />}
+                </button>
+              </div>
             </label>
 
             <button

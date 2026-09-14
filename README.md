@@ -106,16 +106,26 @@ A cloud dev container is defined in `.devcontainer/` (GitHub Codespaces or any d
 There's no sign-up flow — admins are created by hand in Supabase, then promoted with SQL:
 
 1. Supabase dashboard → **Authentication → Users → Add user** → enter their email + password,
-   tick **Auto Confirm User**. (A `public.profiles` row is created for them automatically.)
-2. In the Supabase **SQL editor**, run:
+   tick **Auto Confirm User**.
+2. Copy that user's **UUID** from the Users list.
+3. In the Supabase **SQL editor**, run:
    ```sql
-   update public.profiles p
-   set is_admin = true
-   from auth.users u
-   where u.id = p.id
-     and u.email = 'their-email@example.com';
+   insert into public.profiles (id, is_admin)
+   values ('paste-the-uuid-here', true)
+   on conflict (id) do update set is_admin = true;
    ```
-3. They can now sign in from the **Admin** button in the header and reach `/admin`.
+4. They can now sign in from the **Admin** button in the header and reach `/admin`.
+
+**"Wrong email or password" even with correct credentials?** This almost always means step 1's
+**Auto Confirm User** checkbox wasn't ticked — Supabase Auth silently refuses to sign in an
+unconfirmed user and returns that same generic error. Fix it with:
+```sql
+update auth.users
+set email_confirmed_at = now()
+where email = 'their-email@example.com';
+```
+(`confirmed_at` is a generated column derived from `email_confirmed_at` — don't set it directly,
+it updates itself.)
 
 (See `misc/admin-setup.sql`, steps 3–4, for the same instructions alongside the rest of the
 one-time RLS/schema setup.)

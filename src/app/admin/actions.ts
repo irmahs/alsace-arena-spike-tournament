@@ -99,6 +99,55 @@ export async function loadGameStats(input: {
   return { rows: (data ?? []) as LoadedRow[], error: null };
 }
 
+/**
+ * A match's games usually share the same 10 players. For a game that has no saved stats yet,
+ * this returns the player roster (in save order) from the nearest earlier game in the same
+ * match that does have stats — so switching from game 1 to game 2 carries the names over and
+ * only the numbers need re-entering. Empty if there's no earlier game with data.
+ */
+export async function loadPreviousGamePlayers(input: {
+  season: number;
+  matchNumber: number;
+  beforeGameNumber: number;
+}): Promise<{ playerIds: string[]; error: string | null }> {
+  if (!(await getAdminUser())) return { playerIds: [], error: 'Not authorized.' };
+
+  const { season, matchNumber, beforeGameNumber } = input;
+  if (!season || !matchNumber || beforeGameNumber <= 1) return { playerIds: [], error: null };
+
+  const supabase = createClient(await cookies());
+  const { data: match, error: matchErr } = await supabase
+    .from('matches')
+    .select('id')
+    .eq('match_season', season)
+    .eq('match_number', matchNumber)
+    .maybeSingle();
+  if (matchErr) return { playerIds: [], error: matchErr.message };
+  if (!match) return { playerIds: [], error: null };
+
+  const { data: games, error: gamesErr } = await supabase
+    .from('games')
+    .select('id')
+    .eq('match_id', match.id)
+    .lt('game_number', beforeGameNumber)
+    .order('game_number', { ascending: false });
+  if (gamesErr) return { playerIds: [], error: gamesErr.message };
+  if (!games || games.length === 0) return { playerIds: [], error: null };
+
+  for (const g of games) {
+    const { data: stats, error: statsErr } = await supabase
+      .from('game_stats')
+      .select('player_id')
+      .eq('game_id', g.id)
+      .order('id');
+    if (statsErr) return { playerIds: [], error: statsErr.message };
+    if (stats && stats.length > 0) {
+      return { playerIds: stats.map((s) => s.player_id), error: null };
+    }
+  }
+  return { playerIds: [], error: null };
+}
+
 /** Deletes a saved game (and its stats) for a (season, match, game). No-op if it doesn't exist. */
 export async function deleteGameStats(input: {
   season: number;

@@ -14,11 +14,12 @@ Built with **Next.js**, **Tailwind CSS**, **Supabase**, and **Claude** (scoreboa
   carousel of category leaders (least deaths, most kills, assists, first bloods, plants, defuses).
 - Season switcher in the header (only lists seasons that exist in the database).
 - Light/dark theme toggle and English/French language toggle, both in the header — the public
-  site (leaderboard, matches, match/game detail) is fully translated; the admin tool is English only.
+  site and the admin tool (login + score entry) are both fully translated.
 - Admin area (`/admin`, Supabase auth) — enter a game's 10 player rows by hand: pick each
-  player from a dropdown, or tick "New" to register one on the spot by username. One-click
-  "Check bonuses" fills every bonus but victory. Uploading a screenshot for Claude to read
-  instead is built in but off by default (feature flag).
+  player from a dropdown, or tick "New" to register one on the spot by username. Moving to a
+  later game with no data yet carries the same 10 players over automatically, so only the
+  numbers need re-entering. One-click "Check bonuses" fills every bonus but victory. Uploading
+  a screenshot for Claude to read instead is built in but off by default (feature flag).
 
 ## Scoring formula
 

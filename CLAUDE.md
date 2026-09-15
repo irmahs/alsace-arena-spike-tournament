@@ -78,8 +78,12 @@ Next.js 16 (App Router) · React 19 · TypeScript (strict) · Tailwind CSS v4 ·
     manually-checkable checkbox per row; none ticked = no +50.
     Picking a full season+match+game triggers a `useEffect` that calls `loadGameStats` — if
     that combo already has saved `game_stats`, the rows are replaced with the real data
-    (padded to 10 with empty rows) and a "editing a saved entry" badge appears; otherwise the
-    10 rows reset to blank. **Save game**/**Save changes** calls `saveGameStats`, which
+    (padded to 10 with empty rows) and a "editing a saved entry" badge appears; otherwise, for
+    game 2+, `loadPreviousGamePlayers` carries the **roster only** (player picks, not stats)
+    over from the nearest earlier game in the same match that has saved data — a match's games
+    are usually the same 10 players, so only the numbers need re-entering; if there's no earlier
+    game with data (or this is game 1), the 10 rows reset to blank. **Save game**/**Save
+    changes** calls `saveGameStats`, which
     resolves any new-player rows, then finds-or-creates the `matches` row (by season + number),
     then the `games` row, then replaces its `game_stats` — so re-saving the same combo is how
     edits are persisted. **Delete game** (enabled only when a saved entry is loaded) calls
@@ -150,13 +154,19 @@ and small interpolation functions like `t.match(n)`), and `getDictionary(locale)
 `router.refresh()` so the next server render picks it up — locale is cookie-based, not
 localStorage, precisely because the translated text is rendered server-side.
 
-**Translated:** `layout.tsx`/`NavLinks.tsx` (nav, season labels), `/` , `/matches`,
-`/matches/[season]/[matchId]` (+ `.../[game]`) — i.e. the whole public site. Column-abbreviation
-headers (ACS/K/D/A/Eco/FB/Pl./Def./Pts) are deliberately left as-is in both languages (universal
-esports shorthand). **Not translated (English only, on purpose):** the admin login modal
-(`AdminMenu.tsx`) and the score-entry form (`ScoreEntry.tsx`) — an admin-only internal tool,
-scoped out to keep the public-facing translation complete and correct rather than spreading
-thin; extend it the same way (import the dictionary, add keys) if that's ever needed.
+**Translated:** the whole public site (`layout.tsx`/`NavLinks.tsx` nav + season labels, `/`,
+`/matches`, `/matches/[season]/[matchId]` + `.../[game]`) **and** the admin area — the login
+modal (`AdminMenu.tsx`, dictionary namespace `admin`), the score-entry form (`ScoreEntry.tsx`,
+namespace `adminForm`), and `admin/page.tsx`'s own chrome (also `admin`). Column-abbreviation
+headers (ACS/K/D/A/Eco/FB/Pl./Def./Pts) are deliberately left as-is in both languages everywhere,
+including on the score-entry table (universal esports shorthand). Client components that need
+`t` take a `locale: Locale` prop from their Server Component parent and call `getDictionary(locale)`
+themselves (see `NavLinks.tsx`, `AdminMenu.tsx`, `ScoreEntry.tsx`) rather than being handed an
+already-resolved dictionary object. **Still English-only, on purpose:** the raw error strings
+`saveGameStats`/`deleteGameStats`/`loadGameStats` (`admin/actions.ts`) return on validation
+failure (e.g. "Every row needs a player picked…") — those are server-side and rare misuse-only
+paths, not translated; and the Claude-vision scan's own error text (`onFile` in `ScoreEntry.tsx`)
+— dead code while `SCOREBOARD_SCAN_ENABLED` is off.
 
 ### Scoring
 

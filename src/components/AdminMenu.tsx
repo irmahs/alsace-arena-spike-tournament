@@ -4,11 +4,13 @@ import { useRef, useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
 import { IconEye, IconEyeOff } from '@tabler/icons-react';
 import { createClient } from '@/lib/supabase/client';
+import { getDictionary, type Locale } from '@/i18n/dictionary';
 
 const badgeClass =
   'text-[11px] font-semibold text-[var(--accent)] border border-[var(--accent-33)] hover:border-[var(--accent-77)] px-2.5 py-1 rounded tracking-[.06em] uppercase transition-colors';
 
-export default function AdminMenu({ isAdmin }: { isAdmin: boolean }) {
+export default function AdminMenu({ isAdmin, locale }: { isAdmin: boolean; locale: Locale }) {
+  const t = getDictionary(locale).admin;
   const dialogRef = useRef<HTMLDialogElement>(null);
   const router = useRouter();
   const [error, setError] = useState<string | null>(null);
@@ -18,7 +20,7 @@ export default function AdminMenu({ isAdmin }: { isAdmin: boolean }) {
   if (isAdmin) {
     return (
       <a href="/admin" className={badgeClass}>
-        Admin
+        {t.badge}
       </a>
     );
   }
@@ -40,7 +42,7 @@ export default function AdminMenu({ isAdmin }: { isAdmin: boolean }) {
     const supabase = createClient();
     const { data, error: signInError } = await supabase.auth.signInWithPassword({ email, password });
     if (signInError || !data.user) {
-      setError('Wrong email or password.');
+      setError(t.wrongCredentials);
       return;
     }
 
@@ -52,7 +54,7 @@ export default function AdminMenu({ isAdmin }: { isAdmin: boolean }) {
 
     if (!profile?.is_admin) {
       await supabase.auth.signOut();
-      setError('That account is not an admin.');
+      setError(t.notAdmin);
       return;
     }
 
@@ -66,7 +68,7 @@ export default function AdminMenu({ isAdmin }: { isAdmin: boolean }) {
   return (
     <>
       <button type="button" onClick={open} className={badgeClass}>
-        Admin
+        {t.badge}
       </button>
 
       <dialog
@@ -79,14 +81,14 @@ export default function AdminMenu({ isAdmin }: { isAdmin: boolean }) {
         <div className="max-h-full w-[380px] max-w-full overflow-y-auto rounded-xl border border-[var(--border)] bg-[var(--bg)] p-7">
           <div className="mb-5 flex items-start justify-between">
             <div>
-              <div className="mb-1 text-[11px] font-semibold uppercase tracking-[.14em] text-[var(--accent)]">Admin</div>
-              <h2 className="font-display text-[20px] font-bold leading-none text-[var(--text-strong)]">Sign in</h2>
+              <div className="mb-1 text-[11px] font-semibold uppercase tracking-[.14em] text-[var(--accent)]">{t.overline}</div>
+              <h2 className="font-display text-[20px] font-bold leading-none text-[var(--text-strong)]">{t.signInTitle}</h2>
             </div>
             <button
               type="button"
               onClick={() => dialogRef.current?.close()}
               className="text-[18px] leading-none text-[var(--text-muted)] hover:text-[var(--text-strong)]"
-              aria-label="Close"
+              aria-label={t.close}
             >
               ×
             </button>
@@ -100,7 +102,7 @@ export default function AdminMenu({ isAdmin }: { isAdmin: boolean }) {
 
           <form onSubmit={handleSubmit} className="flex flex-col gap-3.5">
             <label className="flex flex-col gap-1.5">
-              <span className="text-[11px] font-semibold uppercase tracking-[.06em] text-[var(--text-muted)]">Email</span>
+              <span className="text-[11px] font-semibold uppercase tracking-[.06em] text-[var(--text-muted)]">{t.email}</span>
               <input
                 type="email"
                 name="email"
@@ -111,7 +113,7 @@ export default function AdminMenu({ isAdmin }: { isAdmin: boolean }) {
             </label>
 
             <label className="flex flex-col gap-1.5">
-              <span className="text-[11px] font-semibold uppercase tracking-[.06em] text-[var(--text-muted)]">Password</span>
+              <span className="text-[11px] font-semibold uppercase tracking-[.06em] text-[var(--text-muted)]">{t.password}</span>
               <div className="relative">
                 <input
                   type={showPassword ? 'text' : 'password'}
@@ -124,7 +126,7 @@ export default function AdminMenu({ isAdmin }: { isAdmin: boolean }) {
                   type="button"
                   onClick={() => setShowPassword((v) => !v)}
                   className="absolute inset-y-1 right-1 flex w-7 items-center justify-center rounded text-[var(--text-muted)] hover:text-[var(--text-strong)]"
-                  aria-label={showPassword ? 'Hide password' : 'Show password'}
+                  aria-label={showPassword ? t.hidePassword : t.showPassword}
                 >
                   {showPassword ? <IconEyeOff size={16} /> : <IconEye size={16} />}
                 </button>
@@ -136,7 +138,7 @@ export default function AdminMenu({ isAdmin }: { isAdmin: boolean }) {
               disabled={pending}
               className="mt-1 rounded-md bg-[var(--accent)] px-4 py-2.5 text-[13px] font-semibold uppercase tracking-[.04em] text-white transition-colors hover:bg-[var(--accent-hover)] disabled:opacity-60"
             >
-              {pending ? 'Signing in…' : 'Sign in'}
+              {pending ? t.signingIn : t.signIn}
             </button>
           </form>
         </div>

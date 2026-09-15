@@ -76,7 +76,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
             <NavLinks seasons={seasons} locale={locale} />
             <ThemeToggle />
             <LanguageToggle locale={locale} />
-            <AdminMenu isAdmin={!!adminUser} />
+            <AdminMenu isAdmin={!!adminUser} locale={locale} />
           </div>
         </nav>
 

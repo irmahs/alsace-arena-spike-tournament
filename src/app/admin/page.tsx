@@ -4,16 +4,20 @@ import { createClient } from '@/lib/supabase/server';
 import { getAdminUser } from '@/lib/supabase/auth';
 import { getMatches } from '@/services/matches';
 import { getPlayers } from '@/services/players';
+import { getDictionary } from '@/i18n/dictionary';
+import { getLocale } from '@/i18n/locale';
 import ScoreEntry from '@/components/ScoreEntry';
 
 export default async function AdminPage() {
   const user = await getAdminUser();
   if (!user) redirect('/');
 
-  const [{ matches }, { players, error: playersError }] = await Promise.all([
+  const [{ matches }, { players, error: playersError }, locale] = await Promise.all([
     getMatches(),
     getPlayers(),
+    getLocale(),
   ]);
+  const t = getDictionary(locale);
 
   async function signOut() {
     'use server';
@@ -26,11 +30,11 @@ export default async function AdminPage() {
     <div className="px-7 py-8">
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div>
-          <div className="mb-1.5 text-[11px] font-semibold uppercase tracking-[.14em] text-[var(--accent)]">Admin</div>
+          <div className="mb-1.5 text-[11px] font-semibold uppercase tracking-[.14em] text-[var(--accent)]">{t.admin.overline}</div>
           <h1 className="font-display text-[28px] font-bold leading-none tracking-[.02em] text-[var(--text-strong)]">
-            Enter a game score
+            {t.admin.pageTitle}
           </h1>
-          <div className="mt-2 text-[13px] text-[var(--text-muted)]">Signed in as {user.email}</div>
+          <div className="mt-2 text-[13px] text-[var(--text-muted)]">{t.admin.signedInAs(user.email ?? '')}</div>
         </div>
 
         <form action={signOut}>
@@ -38,12 +42,12 @@ export default async function AdminPage() {
             type="submit"
             className="rounded-md border border-[var(--border)] px-3.5 py-2 text-[12px] font-semibold uppercase tracking-[.04em] text-[var(--text-subtle)] transition-colors hover:border-[var(--border-strong)] hover:text-[var(--text-strong)]"
           >
-            Sign out
+            {t.admin.signOut}
           </button>
         </form>
       </div>
 
-      <ScoreEntry matches={matches} players={players} playersError={playersError} />
+      <ScoreEntry matches={matches} players={players} playersError={playersError} locale={locale} />
     </div>
   );
 }

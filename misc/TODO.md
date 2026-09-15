@@ -24,13 +24,15 @@
 - [x] Admin score editing/deleting — picking a saved season+match+game loads its real
       `game_stats` into the form ("Save changes" replaces them); "Delete game" removes the
       game + its stats after a confirm
+- [x] Admin roster carryover — picking a game with no saved stats yet pre-fills the player
+      rows (not the numbers) from the nearest earlier game in the same match that has data
 - [x] Scoreboard-screenshot scan (Claude vision) — built, feature-flagged off
       (`SCOREBOARD_SCAN_ENABLED` in `src/constants/flags.ts`)
 - [x] Deployment — Vercel (https://alsace-arena-spike-tournament.vercel.app/)
 - [x] Cloud dev container (`.devcontainer/`)
 - [x] Light/dark theme toggle — every color is a CSS var (`globals.css`), no more hard-coded hex
-- [x] English/French language toggle — cookie-based locale (`src/i18n/`), public pages
-      translated; admin login + score-entry form left English-only (scoped out)
+- [x] English/French language toggle — cookie-based locale (`src/i18n/`); public pages, the
+      admin login modal, and the score-entry form are all translated
 
 ## In progress
 
@@ -40,7 +42,7 @@
 
 - [ ] Match dates — display and manage scheduled dates per match
 - [ ] Admin — player availability, player CRUD (edit/delete a player), retain the uploaded
-      screenshot, delete an entire match (not just one game), translate the admin UI to FR too
+      screenshot, delete an entire match (not just one game)
 - [ ] Migrate `matchScores.getPlayerTotals` + the per-game page onto `computeScore()`
 - [ ] Simplify home page URL — `/?currentSeason=8&tab=1&matchId=1&matchSeason=8` has redundant
       params, should collapse to something like `/?season=8&match=1`

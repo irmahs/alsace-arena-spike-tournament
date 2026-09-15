@@ -3,7 +3,14 @@
 import { useEffect, useMemo, useRef, useState, useTransition } from 'react';
 import { computeScore } from '@/constants/scoring';
 import { SCOREBOARD_SCAN_ENABLED } from '@/constants/flags';
-import { saveGameStats, loadGameStats, deleteGameStats, type SaveRow } from '@/app/admin/actions';
+import {
+  saveGameStats,
+  loadGameStats,
+  loadPreviousGamePlayers,
+  deleteGameStats,
+  type SaveRow,
+} from '@/app/admin/actions';
+import { getDictionary, type Locale } from '@/i18n/dictionary';
 import type { Match } from '@/types';
 import type { PlayerRef } from '@/services/players';
 
@@ -51,13 +58,7 @@ const NUM_FIELDS = [
   ['defuses', 'Def.'],
 ] as const;
 
-const BONUS_FIELDS = [
-  ['bonus_fb', 'First blood'],
-  ['bonus_death', 'Least deaths'],
-  ['bonus_assist', 'Most assists'],
-  ['bonus_plant', 'Most plants'],
-  ['bonus_defuse', 'Most defuses'],
-] as const;
+const BONUS_KEYS = ['bonus_fb', 'bonus_death', 'bonus_assist', 'bonus_plant', 'bonus_defuse'] as const;
 
 const label = 'text-[11px] font-semibold uppercase tracking-[.06em] text-[var(--text-muted)]';
 const select =
@@ -125,7 +126,7 @@ function rowPoints(r: Row): number {
     first_bloods: r.first_bloods,
     plants: r.plants,
     defuses: r.defuses,
-    bonus_count: BONUS_FIELDS.filter(([k]) => r[k]).length,
+    bonus_count: BONUS_KEYS.filter((k) => r[k]).length,
     wins: r.win ? 1 : 0,
   });
 }
@@ -134,11 +135,21 @@ export default function ScoreEntry({
   matches,
   players,
   playersError,
+  locale,
 }: {
   matches: Match[];
   players: PlayerRef[];
   playersError?: string | null;
+  locale: Locale;
 }) {
+  const t = getDictionary(locale);
+  const bonusLabels: Record<(typeof BONUS_KEYS)[number], string> = {
+    bonus_fb: t.adminForm.bonusFirstBlood,
+    bonus_death: t.adminForm.bonusLeastDeaths,
+    bonus_assist: t.adminForm.bonusMostAssists,
+    bonus_plant: t.adminForm.bonusMostPlants,
+    bonus_defuse: t.adminForm.bonusMostDefuses,
+  };
   const maxSeason = useMemo(
     () => matches.reduce((max, m) => Math.max(max, m.match_season ?? 0), 0) || 1,
     [matches],
@@ -166,30 +177,53 @@ export default function ScoreEntry({
   const ready = season !== '' && matchNumber !== '' && gameNumber !== '' && rows.length > 0;
 
   // Selecting a full season/match/game loads whatever is already saved for it, so editing
-  // starts from the real data instead of blank rows you'd silently overwrite on Save.
+  // starts from the real data instead of blank rows you'd silently overwrite on Save. When
+  // there's nothing saved for this game yet, the roster (not the stats) carries over from the
+  // nearest earlier game in the same match — a match's games are usually the same 10 players.
   useEffect(() => {
     if (season === '' || matchNumber === '' || gameNumber === '') return;
     let cancelled = false;
     setLoadingExisting(true);
     setSaveMsg(null);
-    loadGameStats({ season, matchNumber, gameNumber }).then((result) => {
+
+    (async () => {
+      const result = await loadGameStats({ season, matchNumber, gameNumber });
       if (cancelled) return;
-      setLoadingExisting(false);
+
       if (result.error) {
+        setLoadingExisting(false);
         setGameExists(false);
-        setSaveMsg({ ok: false, text: `Could not load existing data: ${result.error}` });
+        setSaveMsg({ ok: false, text: `${t.adminForm.loadFailedPrefix}${result.error}` });
         return;
       }
+
       if (result.rows.length > 0) {
         const loaded = result.rows.map((r) => ({ ...emptyRow(), ...r }));
         const padding = Array.from({ length: Math.max(0, 10 - loaded.length) }, emptyRow);
         setRows([...loaded, ...padding]);
         setGameExists(true);
-      } else {
-        setRows(Array.from({ length: 10 }, emptyRow));
-        setGameExists(false);
+        setLoadingExisting(false);
+        return;
       }
-    });
+
+      if (gameNumber > 1) {
+        const roster = await loadPreviousGamePlayers({ season, matchNumber, beforeGameNumber: gameNumber });
+        if (cancelled) return;
+        if (!roster.error && roster.playerIds.length > 0) {
+          const carried = roster.playerIds.map((pid) => ({ ...emptyRow(), player_id: pid }));
+          const padding = Array.from({ length: Math.max(0, 10 - carried.length) }, emptyRow);
+          setRows([...carried, ...padding]);
+          setGameExists(false);
+          setLoadingExisting(false);
+          return;
+        }
+      }
+
+      setRows(Array.from({ length: 10 }, emptyRow));
+      setGameExists(false);
+      setLoadingExisting(false);
+    })();
+
     return () => {
       cancelled = true;
     };
@@ -207,9 +241,7 @@ export default function ScoreEntry({
 
   function deleteGame() {
     if (season === '' || matchNumber === '' || gameNumber === '') return;
-    const confirmed = window.confirm(
-      `Delete all saved stats for season ${season}, match ${matchNumber}, game ${gameNumber}? This cannot be undone.`,
-    );
+    const confirmed = window.confirm(t.adminForm.deleteConfirm(season, matchNumber, gameNumber));
     if (!confirmed) return;
     setSaveMsg(null);
     startDeleting(async () => {
@@ -217,9 +249,9 @@ export default function ScoreEntry({
       if (result.ok) {
         setRows(Array.from({ length: 10 }, emptyRow));
         setGameExists(false);
-        setSaveMsg({ ok: true, text: `Deleted season ${season}, match ${matchNumber}, game ${gameNumber}.` });
+        setSaveMsg({ ok: true, text: t.adminForm.deleted(season, matchNumber, gameNumber) });
       } else {
-        setSaveMsg({ ok: false, text: result.error ?? 'Delete failed.' });
+        setSaveMsg({ ok: false, text: result.error ?? t.adminForm.deleteFailed });
       }
     });
   }
@@ -297,9 +329,9 @@ export default function ScoreEntry({
         result.ok
           ? {
               ok: true,
-              text: `Saved ${payload.length} players to season ${season}, match ${matchNumber}, game ${gameNumber}.`,
+              text: t.adminForm.saved(payload.length, Number(season), Number(matchNumber), Number(gameNumber)),
             }
-          : { ok: false, text: result.error ?? 'Save failed.' },
+          : { ok: false, text: result.error ?? t.adminForm.saveFailed },
       );
     });
   }
@@ -308,20 +340,23 @@ export default function ScoreEntry({
     <div className="mt-8 flex flex-col gap-6">
       {playersError ? (
         <p className="rounded-md border border-[var(--accent-33)] bg-[var(--accent-0f)] px-3 py-2 text-[12px] text-[var(--accent)]">
-          Could not load players: {playersError}
+          {t.adminForm.playersErrorPrefix}
+          {playersError}
         </p>
       ) : players.length === 0 ? (
         <p className="rounded-md border border-[var(--gold-33)] bg-[var(--gold-0f)] px-3 py-2 text-[12px] text-[var(--gold)]">
-          No players found in the database. Check the <code>players</code> table and its RLS
-          policies (see <code>misc/admin-setup.sql</code> step 9) — the "New" checkbox on a row
-          still lets you register one.
+          {t.adminForm.noPlayersPre}
+          <code>players</code>
+          {t.adminForm.noPlayersMid}
+          <code>misc/admin-setup.sql</code>
+          {t.adminForm.noPlayersPost}
         </p>
       ) : null}
 
       {/* Selectors */}
       <div className="flex flex-wrap items-end gap-4">
         <div className="flex flex-col gap-1.5">
-          <span className={label}>Season</span>
+          <span className={label}>{t.seasonLabel}</span>
           <select
             className={select}
             value={season}
@@ -330,14 +365,14 @@ export default function ScoreEntry({
             <option value="">–</option>
             {seasonOptions.map((s) => (
               <option key={s} value={s}>
-                Season {s}
+                {t.season(s)}
               </option>
             ))}
           </select>
         </div>
 
         <div className="flex flex-col gap-1.5">
-          <span className={label}>Match</span>
+          <span className={label}>{t.matchLabel}</span>
           <select
             className={select}
             value={matchNumber}
@@ -346,14 +381,14 @@ export default function ScoreEntry({
             <option value="">–</option>
             {[1, 2, 3, 4, 5, 6, 7, 8].map((n) => (
               <option key={n} value={n}>
-                Match {n}
+                {t.match(n)}
               </option>
             ))}
           </select>
         </div>
 
         <div className="flex flex-col gap-1.5">
-          <span className={label}>Game</span>
+          <span className={label}>{t.gameLabel}</span>
           <select
             className={select}
             value={gameNumber}
@@ -362,7 +397,7 @@ export default function ScoreEntry({
             <option value="">–</option>
             {[1, 2, 3, 4, 5].map((g) => (
               <option key={g} value={g}>
-                Game {g}
+                {t.game(g)}
               </option>
             ))}
           </select>
@@ -370,7 +405,7 @@ export default function ScoreEntry({
 
         {SCOREBOARD_SCAN_ENABLED && (
           <div className="flex flex-col gap-1.5">
-            <span className={label}>Score picture</span>
+            <span className={label}>{t.adminForm.scorePicture}</span>
             <div className="flex gap-2">
               <button
                 type="button"
@@ -378,7 +413,7 @@ export default function ScoreEntry({
                 disabled={gameNumber === '' || scanning}
                 className="rounded-md bg-[var(--accent)] px-3.5 py-2 text-[13px] font-semibold uppercase tracking-[.04em] text-white transition-colors hover:bg-[var(--accent-hover)] disabled:opacity-40"
               >
-                {scanning ? 'Scanning…' : 'Upload & scan'}
+                {scanning ? t.adminForm.scanning : t.adminForm.uploadScan}
               </button>
             </div>
             <input ref={fileRef} type="file" accept="image/png,image/jpeg,image/webp,image/gif" hidden onChange={onFile} />
@@ -395,35 +430,35 @@ export default function ScoreEntry({
       {rows.length > 0 && (
         <>
           <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-[12px] text-[var(--text-muted)]">
-            <span>{rows.length} rows</span>
-            {loadingExisting && <span className="text-[var(--gold)]">Loading existing entry…</span>}
+            <span>{t.adminForm.rows(rows.length)}</span>
+            {loadingExisting && <span className="text-[var(--gold)]">{t.adminForm.loadingExisting}</span>}
             {!loadingExisting && gameExists && (
-              <span className="text-[var(--green)]">● Editing a saved entry — Save overwrites it, Delete removes it.</span>
+              <span className="text-[var(--green)]">{t.adminForm.editingSaved}</span>
             )}
             {incomplete > 0 && (
-              <span className="text-[var(--accent)]">⚠ {incomplete} row{incomplete > 1 ? 's' : ''} need a player</span>
+              <span className="text-[var(--accent)]">{t.adminForm.needsPlayer(incomplete)}</span>
             )}
-            <span>Fill in the stats, then "Calculate bonuses" auto-ticks everything except victory.</span>
-            <span>Bonus boxes below are read-only — use the button. Win stays manual; none ticked = no victory bonus.</span>
+            <span>{t.adminForm.hintBonuses}</span>
+            <span>{t.adminForm.hintReadonly}</span>
           </div>
 
           <div className="overflow-x-auto">
             <table className="min-w-[1100px] border-collapse">
               <thead>
                 <tr>
-                  <th className={`${th} text-left`}>Player</th>
+                  <th className={`${th} text-left`}>{t.adminForm.playerHeader}</th>
                   {NUM_FIELDS.map(([, h]) => (
                     <th key={h} className={`${th} w-14`}>
                       {h}
                     </th>
                   ))}
-                  <th className={`${th} w-12 border-l border-[var(--border)]`}>Win</th>
-                  {BONUS_FIELDS.map(([, h]) => (
-                    <th key={h} className={`${th} w-14`}>
-                      {h}
+                  <th className={`${th} w-12 border-l border-[var(--border)]`}>{t.matchDetail.win}</th>
+                  {BONUS_KEYS.map((k) => (
+                    <th key={k} className={`${th} w-14`}>
+                      {bonusLabels[k]}
                     </th>
                   ))}
-                  <th className={`${th} w-14 border-l border-[var(--border)]`}>Pts</th>
+                  <th className={`${th} w-14 border-l border-[var(--border)]`}>{t.adminForm.ptsHeader}</th>
                   <th className={th} />
                 </tr>
               </thead>
@@ -454,12 +489,12 @@ export default function ScoreEntry({
                                 })
                               }
                             />
-                            New
+                            {t.adminForm.newLabel}
                           </label>
                           {r.isNew ? (
                             <input
                               value={r.newUsername}
-                              placeholder="Username"
+                              placeholder={t.adminForm.usernamePlaceholder}
                               onChange={(e) => patch(r.key, { newUsername: e.target.value })}
                               className={`w-40 rounded-md border bg-[var(--surface)] px-2 py-1.5 text-[12px] text-[var(--text)] focus:outline-none ${
                                 flagged ? 'border-[var(--accent-77)]' : 'border-[var(--border)]'
@@ -467,7 +502,7 @@ export default function ScoreEntry({
                             />
                           ) : (
                             <div className="flex items-center gap-1.5">
-                              {flagged && <span title="Pick a player">⚠</span>}
+                              {flagged && <span title={t.adminForm.pickPlayerTitle}>⚠</span>}
                               <select
                                 value={r.player_id}
                                 onChange={(e) => patch(r.key, { player_id: e.target.value })}
@@ -475,7 +510,7 @@ export default function ScoreEntry({
                                   flagged ? 'border-[var(--accent-77)]' : 'border-[var(--border)]'
                                 }`}
                               >
-                                <option value="">— pick player —</option>
+                                <option value="">{t.adminForm.pickPlayer}</option>
                                 {availablePlayers.map((p) => (
                                   <option key={p.id} value={p.id}>
                                     {p.username}
@@ -504,7 +539,7 @@ export default function ScoreEntry({
                           onChange={(e) => patch(r.key, { win: e.target.checked })}
                         />
                       </td>
-                      {BONUS_FIELDS.map(([k]) => (
+                      {BONUS_KEYS.map((k) => (
                         <td key={k} className="px-1 py-1.5 text-center">
                           <input type="checkbox" checked={r[k]} disabled readOnly />
                         </td>
@@ -520,7 +555,7 @@ export default function ScoreEntry({
                             setSaveMsg(null);
                           }}
                           className="text-[var(--text-muted)] hover:text-[var(--accent)]"
-                          aria-label="Remove row"
+                          aria-label={t.adminForm.removeRow}
                         >
                           ×
                         </button>
@@ -538,7 +573,7 @@ export default function ScoreEntry({
               onClick={checkBonuses}
               className="rounded-md border border-[var(--border)] px-3.5 py-2.5 text-[13px] font-medium text-[var(--text-subtle)] transition-colors hover:border-[var(--border-strong)] hover:text-[var(--text-strong)]"
             >
-              Calculate bonuses
+              {t.adminForm.calculateBonuses}
             </button>
             <div className="w-px self-stretch bg-[var(--border)]" />
             <button
@@ -547,7 +582,7 @@ export default function ScoreEntry({
               disabled={!ready || saving || deleting}
               className="rounded-md bg-[var(--accent)] px-4 py-2.5 text-[13px] font-semibold uppercase tracking-[.04em] text-white transition-colors hover:bg-[var(--accent-hover)] disabled:opacity-40"
             >
-              {saving ? 'Saving…' : gameExists ? 'Save changes' : 'Save game'}
+              {saving ? t.adminForm.saving : gameExists ? t.adminForm.saveChanges : t.adminForm.saveGame}
             </button>
             <button
               type="button"
@@ -555,7 +590,7 @@ export default function ScoreEntry({
               disabled={!ready || !gameExists || saving || deleting}
               className="rounded-md border border-[var(--accent-55)] px-4 py-2.5 text-[13px] font-semibold uppercase tracking-[.04em] text-[var(--accent)] transition-colors hover:bg-[var(--accent-11)] disabled:opacity-30"
             >
-              {deleting ? 'Deleting…' : 'Delete game'}
+              {deleting ? t.adminForm.deleting : t.adminForm.deleteGame}
             </button>
             <button
               type="button"
@@ -566,7 +601,7 @@ export default function ScoreEntry({
               }}
               className="text-[12px] font-medium text-[var(--text-subtle)] hover:text-[var(--text-strong)]"
             >
-              Reset rows
+              {t.adminForm.resetRows}
             </button>
             {saveMsg && (
               <span className={`text-[12px] ${saveMsg.ok ? 'text-[var(--green)]' : 'text-[var(--accent)]'}`}>

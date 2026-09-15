@@ -131,3 +131,16 @@ create policy "public read players" on public.players for select using (true);
 drop policy if exists "admin insert players" on public.players;
 create policy "admin insert players" on public.players
   for insert to authenticated with check (public.is_admin());
+
+-- 10. The player-management page (/admin/players) edits players (username, nickname, rank)
+--    too, so the admin write policy needs to cover update as well as insert. Players are
+--    never deleted through the app — only created and edited — so there's no delete policy.
+drop policy if exists "admin update players" on public.players;
+create policy "admin update players" on public.players
+  for update to authenticated using (public.is_admin()) with check (public.is_admin());
+
+-- Ranks are reference data (read-only in the app) — admins just need to read them to
+-- populate the rank dropdown on the player-management page.
+alter table public.ranks enable row level security;
+drop policy if exists "public read ranks" on public.ranks;
+create policy "public read ranks" on public.ranks for select using (true);

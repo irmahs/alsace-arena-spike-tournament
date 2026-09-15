@@ -176,6 +176,59 @@ export async function deleteGameStats(input: {
   return { ok: true, error: null };
 }
 
+export type PlayerInput = {
+  username: string;
+  nickname?: string | null;
+  current_rank_id?: number | null;
+};
+
+/** Registers a brand-new player. Fails if the username is already taken. */
+export async function createPlayer(input: PlayerInput): Promise<SaveResult> {
+  if (!(await getAdminUser())) return { ok: false, error: 'Not authorized.' };
+
+  const username = input.username.trim();
+  if (!username) return { ok: false, error: 'Username is required.' };
+
+  const supabase = createClient(await cookies());
+  const { error } = await supabase.from('players').insert({
+    username,
+    nickname: input.nickname?.trim() || null,
+    current_rank_id: input.current_rank_id ?? null,
+  });
+  if (error) {
+    if (error.code === '23505') return { ok: false, error: 'That username is already taken.' };
+    return { ok: false, error: error.message };
+  }
+
+  revalidatePath('/', 'layout');
+  return { ok: true, error: null };
+}
+
+/** Updates an existing player's username, nickname, and rank. Fails if the username is taken. */
+export async function updatePlayer(input: PlayerInput & { id: string }): Promise<SaveResult> {
+  if (!(await getAdminUser())) return { ok: false, error: 'Not authorized.' };
+
+  const username = input.username.trim();
+  if (!username) return { ok: false, error: 'Username is required.' };
+
+  const supabase = createClient(await cookies());
+  const { error } = await supabase
+    .from('players')
+    .update({
+      username,
+      nickname: input.nickname?.trim() || null,
+      current_rank_id: input.current_rank_id ?? null,
+    })
+    .eq('id', input.id);
+  if (error) {
+    if (error.code === '23505') return { ok: false, error: 'That username is already taken.' };
+    return { ok: false, error: error.message };
+  }
+
+  revalidatePath('/', 'layout');
+  return { ok: true, error: null };
+}
+
 export async function saveGameStats(input: {
   season: number;
   matchNumber: number;

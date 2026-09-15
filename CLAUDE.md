@@ -74,8 +74,12 @@ Next.js 16 (App Router) · React 19 · TypeScript (strict) · Tailwind CSS v4 ·
     Once the numbers are in, **Calculate bonuses** (bottom action row) ticks every bonus except
     victory (first blood / least deaths / most assists / most plants / most defuses, all by
     max/min, ties allowed); those 5 checkboxes are rendered `disabled` — visible but not
-    user-editable, the button is the only way to set them. **Win** stays a normal,
-    manually-checkable checkbox per row; none ticked = no +50.
+    user-editable, the button is the only way to set them. Their column headers are icons
+    (`IconSwords`/`IconSkull`/`IconHeartHandshake`/`IconBomb`/`IconHammer` — same set as the
+    public site, via a module-level `BONUS_ICONS` map keyed the same way as `BONUS_KEYS`), not
+    text, with a legend (icon + label, matching the public match-detail page's legend style)
+    above the table explaining each one; **Win** has no icon and stays a normal,
+    manually-checkable checkbox per row — none ticked = no +50.
     Picking a full season+match+game triggers a `useEffect` that calls `loadGameStats` — if
     that combo already has saved `game_stats`, the rows are replaced with the real data
     (padded to 10 with empty rows) and a "editing a saved entry" badge appears; otherwise, for
@@ -95,6 +99,28 @@ Next.js 16 (App Router) · React 19 · TypeScript (strict) · Tailwind CSS v4 ·
     policy".
     Uploading a screenshot to auto-fill the rows via Claude vision still exists but is gated
     behind `SCOREBOARD_SCAN_ENABLED` in `src/constants/flags.ts` — **currently `false`**.
+  - `/admin/players` (`page.tsx` + `components/PlayerManager.tsx`, client) — second admin page,
+    same `getAdminUser()` guard. **No delete — players can only be created and edited**; a row's
+    **Edit** button turns username/nickname/rank into inputs (a `<select>` of `getRanks()` for
+    rank), **Save**/**Cancel** to commit or discard. The form above the table creates a new
+    player the same way (username required, nickname + rank optional). Actions
+    (`createPlayer`/`updatePlayer` in `admin/actions.ts`, sharing a `PlayerInput` type) map the
+    Postgres `23505` unique-violation code to "That username is already taken." — no delete
+    action exists, so there's nothing to guard against the `game_stats` FK. On success the
+    component calls `router.refresh()` to re-pull the player list from the server rather than
+    keeping local state in sync by hand. `services/ranks.ts` (`getRanks()`) is reference data,
+    ordered by `rank_value`, read-only in the app. `components/AdminNav.tsx` (server, plain
+    `<Link>`s — no client state needed) renders the "Score entry" / "Players" tab strip on
+    **both** admin pages, styled as real browser/folder tabs rather than pill buttons: the
+    active tab shares the panel's background and its bottom border is painted that same
+    color then pulled down 1px (`-mb-px`) over the panel's own top border — the standard
+    seamless tab/panel trick — so it reads as part of the page below it, while the inactive
+    tab sits on the page background, nudged down (`translate-y-0.5`), reading as a tab further
+    back. Each admin page wraps its form (`ScoreEntry`/`PlayerManager`) in a
+    `rounded-b-xl rounded-tr-xl border border-[var(--border)] bg-[var(--surface)] p-6` panel
+    directly under `<AdminNav>` so the tabs + panel together read as one page, not a bare form
+    floating under two nav links. Needs `misc/admin-setup.sql` step 10 (admin **update** policy
+    on `players` — step 9 only ever covered insert — plus a public read policy on `ranks`).
   - Login is **not a page** — the "Admin" nav item (`components/AdminMenu.tsx`, client) opens a
     `<dialog>` modal that signs in with the **browser** Supabase client
     (`supabase.auth.signInWithPassword`), checks `profiles.is_admin` (signs out + errors if
@@ -108,9 +134,11 @@ Next.js 16 (App Router) · React 19 · TypeScript (strict) · Tailwind CSS v4 ·
 - `src/constants/flags.ts` — feature flags. `SCOREBOARD_SCAN_ENABLED` (currently `false`) gates
   the screenshot-scan UI + route above.
 - `src/services/` — one module per concern (`matches.ts`, `games.ts`, `gameStats.ts`,
-  `players.ts` — `getPlayers()` id/username (that's the whole `players` table this app reads —
-  don't add columns to the select without confirming they exist; see the admin section above),
-  `matchScores.ts` —
+  `players.ts` — `getPlayers()` returns `id`/`username`/`nickname`/`current_rank_id`, the full
+  real `players` schema (confirmed against `information_schema.columns` after an earlier
+  `in_game_name`/`discord_name` bug — see the admin section above; don't add a column to the
+  select without confirming it exists), `ranks.ts` — `getRanks()`, reference data for the rank
+  dropdown on `/admin/players`, ordered by `rank_value`, `matchScores.ts` —
   `getPlayerTotals(matchIds[])` aggregates cumulative stats + total points; one id = a match
   table, all season ids = the home "All matches" leaderboard). Every function creates a fresh
   server client with `createClient(await cookies())` and returns `{ data, error: string | null }`.
@@ -155,16 +183,20 @@ and small interpolation functions like `t.match(n)`), and `getDictionary(locale)
 localStorage, precisely because the translated text is rendered server-side.
 
 **Translated:** the whole public site (`layout.tsx`/`NavLinks.tsx` nav + season labels, `/`,
-`/matches`, `/matches/[season]/[matchId]` + `.../[game]`) **and** the admin area — the login
-modal (`AdminMenu.tsx`, dictionary namespace `admin`), the score-entry form (`ScoreEntry.tsx`,
-namespace `adminForm`), and `admin/page.tsx`'s own chrome (also `admin`). Column-abbreviation
-headers (ACS/K/D/A/Eco/FB/Pl./Def./Pts) are deliberately left as-is in both languages everywhere,
-including on the score-entry table (universal esports shorthand). Client components that need
-`t` take a `locale: Locale` prop from their Server Component parent and call `getDictionary(locale)`
-themselves (see `NavLinks.tsx`, `AdminMenu.tsx`, `ScoreEntry.tsx`) rather than being handed an
-already-resolved dictionary object. **Still English-only, on purpose:** the raw error strings
-`saveGameStats`/`deleteGameStats`/`loadGameStats` (`admin/actions.ts`) return on validation
-failure (e.g. "Every row needs a player picked…") — those are server-side and rare misuse-only
+`/matches`, `/matches/[season]/[matchId]` + `.../[game]`) **and** the whole admin area — the
+login modal (`AdminMenu.tsx`, dictionary namespace `admin`), the score-entry form
+(`ScoreEntry.tsx`, namespace `adminForm`), `admin/page.tsx`'s own chrome (also `admin`), the
+players page (`PlayerManager.tsx`, namespace `adminPlayers`), and the `AdminNav.tsx` tab strip
+(namespace `adminNav`). Column-abbreviation headers (ACS/K/D/A/Eco/FB/Pl./Def./Pts) are
+deliberately left as-is in both languages everywhere, including on the score-entry table
+(universal esports shorthand). Client components that need `t` take a `locale: Locale` prop
+from their Server Component parent and call `getDictionary(locale)` themselves (see
+`NavLinks.tsx`, `AdminMenu.tsx`, `ScoreEntry.tsx`, `PlayerManager.tsx`) rather than being handed
+an already-resolved dictionary object — `AdminNav.tsx` is a Server Component so it does the same
+directly. **Still English-only, on purpose:** the raw error strings
+`saveGameStats`/`deleteGameStats`/`loadGameStats`/`createPlayer`/`updatePlayer`
+(`admin/actions.ts`) return on validation failure (e.g. "Every row needs a player picked…",
+"That username is already taken.") — those are server-side and rare misuse-only
 paths, not translated; and the Claude-vision scan's own error text (`onFile` in `ScoreEntry.tsx`)
 — dead code while `SCOREBOARD_SCAN_ENABLED` is off.
 

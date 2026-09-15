@@ -80,7 +80,7 @@ export default async function Page({
             <IconTrophy size={28} className="shrink-0 text-[var(--gold)]" />
             <div>
               <div className="text-[10px] font-semibold uppercase tracking-[.14em] text-[var(--gold)]">
-                {t.matchDetail.mvpTitle}
+                {t.matchDetail.matchMvpTitle(matchNumber)}
               </div>
               <div className="mt-1 font-display text-[22px] font-bold leading-none text-[var(--text-strong)]">{mvp.username}</div>
             </div>

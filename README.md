@@ -14,12 +14,15 @@ Built with **Next.js**, **Tailwind CSS**, **Supabase**, and **Claude** (scoreboa
   carousel of category leaders (least deaths, most kills, assists, first bloods, plants, defuses).
 - Season switcher in the header (only lists seasons that exist in the database).
 - Light/dark theme toggle and English/French language toggle, both in the header — the public
-  site and the admin tool (login + score entry) are both fully translated.
-- Admin area (`/admin`, Supabase auth) — enter a game's 10 player rows by hand: pick each
-  player from a dropdown, or tick "New" to register one on the spot by username. Moving to a
-  later game with no data yet carries the same 10 players over automatically, so only the
-  numbers need re-entering. One-click "Check bonuses" fills every bonus but victory. Uploading
-  a screenshot for Claude to read instead is built in but off by default (feature flag).
+  site and the whole admin area are fully translated.
+- Admin area (Supabase auth), two pages with a tab strip between them:
+  - `/admin` — score entry: enter a game's 10 player rows by hand, pick each player from a
+    dropdown, or tick "New" to register one on the spot by username. Moving to a later game
+    with no data yet carries the same 10 players over automatically, so only the numbers need
+    re-entering. One-click "Check bonuses" fills every bonus but victory. Uploading a
+    screenshot for Claude to read instead is built in but off by default (feature flag).
+  - `/admin/players` — add a player (username, nickname, rank) or edit an existing one's
+    username/nickname/rank inline. Players can only be created and edited, never deleted.
 
 ## Scoring formula
 
@@ -56,19 +59,23 @@ src/
     matches/                       — match grid
     matches/[season]/[matchId]/    — match detail (all games combined, 2–5 per match)
       [game]/                      — individual game stats
-    admin/                         — score-entry form (page.tsx) + save/load/delete actions.ts
+    admin/                         — score-entry form (page.tsx) + actions.ts (save/load/delete
+                                     games, create/rename/delete players)
+      players/                     — player management page
     api/admin/scan-scoreboard/     — POST an image, Claude returns the 10 rows
   components/
     NavLinks.tsx                   — nav bar + season dropdown
     AdminMenu.tsx                  — login modal (browser Supabase client)
+    AdminNav.tsx                   — tab strip between the two admin pages
     ScoreEntry.tsx                 — the admin score-entry form
+    PlayerManager.tsx              — add/edit players (username, nickname, rank)
     StatLeaders.tsx                — category-leader carousel (match/game detail header)
     ThemeToggle.tsx, LanguageToggle.tsx
   constants/scoring.ts             — POINTS_PER_BONUS, POINTS_PER_WIN, computeScore()
   constants/flags.ts               — SCOREBOARD_SCAN_ENABLED feature flag
   i18n/dictionary.ts, locale.ts    — EN/FR strings + cookie-based locale
   lib/supabase/                    — client / server factories + auth.ts (getAdminUser)
-  services/                        — data access (matches, games, gameStats, matchScores, players)
+  services/                        — data access (matches, games, gameStats, matchScores, players, ranks)
   types/                           — TypeScript domain model
 ```
 

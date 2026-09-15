@@ -33,6 +33,9 @@
 - [x] Light/dark theme toggle — every color is a CSS var (`globals.css`), no more hard-coded hex
 - [x] English/French language toggle — cookie-based locale (`src/i18n/`); public pages, the
       admin login modal, and the score-entry form are all translated
+- [x] Admin player management (`/admin/players`) — add or edit a player's username, nickname,
+      and rank; no delete, separate from score entry (tab strip via `AdminNav.tsx` on both
+      admin pages)
 
 ## In progress
 
@@ -41,8 +44,8 @@
 ## To do
 
 - [ ] Match dates — display and manage scheduled dates per match
-- [ ] Admin — player availability, player CRUD (edit/delete a player), retain the uploaded
-      screenshot, delete an entire match (not just one game)
+- [ ] Admin — player availability, retain the uploaded screenshot, delete an entire match
+      (not just one game)
 - [ ] Migrate `matchScores.getPlayerTotals` + the per-game page onto `computeScore()`
 - [ ] Simplify home page URL — `/?currentSeason=8&tab=1&matchId=1&matchSeason=8` has redundant
       params, should collapse to something like `/?season=8&match=1`

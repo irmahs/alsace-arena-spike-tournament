@@ -49,7 +49,8 @@ const dictionaries = {
     },
 
     matchDetail: {
-      mvpTitle: 'MVP',
+      matchMvpTitle: (n: number) => `Match ${n} MVP`,
+      gameMvpTitle: (n: number) => `Game ${n} MVP`,
       kda: 'K / D / A',
       acs: 'ACS',
       result: 'Result',
@@ -137,6 +138,29 @@ const dictionaries = {
       bonusMostPlants: 'Most plants',
       bonusMostDefuses: 'Most defuses',
     },
+
+    adminNav: {
+      scoreEntry: 'Score entry',
+      players: 'Players',
+    },
+
+    adminPlayers: {
+      pageTitle: 'Manage players',
+      newPlayer: 'New player',
+      usernamePlaceholder: 'Username',
+      nicknamePlaceholder: 'Nickname (optional)',
+      noRank: 'No rank',
+      addPlayer: 'Add player',
+      usernameHeader: 'Username',
+      nicknameHeader: 'Nickname',
+      rankHeader: 'Rank',
+      edit: 'Edit',
+      save: 'Save',
+      cancel: 'Cancel',
+      noPlayers: 'No players yet.',
+      addFailed: 'Could not add player.',
+      updateFailed: 'Could not update player.',
+    },
   },
 
   fr: {
@@ -184,7 +208,8 @@ const dictionaries = {
     },
 
     matchDetail: {
-      mvpTitle: 'MVP',
+      matchMvpTitle: (n: number) => `MVP du match ${n}`,
+      gameMvpTitle: (n: number) => `MVP de la partie ${n}`,
       kda: 'K / D / A',
       acs: 'ACS',
       result: 'Résultat',
@@ -272,6 +297,29 @@ const dictionaries = {
       bonusMostAssists: "Plus d'assists",
       bonusMostPlants: 'Plus de poses',
       bonusMostDefuses: 'Plus de désamorçages',
+    },
+
+    adminNav: {
+      scoreEntry: 'Saisie des scores',
+      players: 'Joueurs',
+    },
+
+    adminPlayers: {
+      pageTitle: 'Gérer les joueurs',
+      newPlayer: 'Nouveau joueur',
+      usernamePlaceholder: "Nom d'utilisateur",
+      nicknamePlaceholder: 'Pseudo (facultatif)',
+      noRank: 'Aucun rang',
+      addPlayer: 'Ajouter le joueur',
+      usernameHeader: "Nom d'utilisateur",
+      nicknameHeader: 'Pseudo',
+      rankHeader: 'Rang',
+      edit: 'Modifier',
+      save: 'Enregistrer',
+      cancel: 'Annuler',
+      noPlayers: 'Aucun joueur pour le moment.',
+      addFailed: "Impossible d'ajouter le joueur.",
+      updateFailed: 'Impossible de mettre à jour le joueur.',
     },
   },
 } as const;

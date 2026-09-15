@@ -6,6 +6,7 @@ import { getMatches } from '@/services/matches';
 import { getPlayers } from '@/services/players';
 import { getDictionary } from '@/i18n/dictionary';
 import { getLocale } from '@/i18n/locale';
+import AdminNav from '@/components/AdminNav';
 import ScoreEntry from '@/components/ScoreEntry';
 
 export default async function AdminPage() {
@@ -27,8 +28,8 @@ export default async function AdminPage() {
   }
 
   return (
-    <div className="px-7 py-8">
-      <div className="flex flex-wrap items-start justify-between gap-4">
+    <div>
+      <div className="flex flex-wrap items-start justify-between gap-4 px-7 py-8 border-b border-[var(--border)]">
         <div>
           <div className="mb-1.5 text-[11px] font-semibold uppercase tracking-[.14em] text-[var(--accent)]">{t.admin.overline}</div>
           <h1 className="font-display text-[28px] font-bold leading-none tracking-[.02em] text-[var(--text-strong)]">
@@ -47,7 +48,13 @@ export default async function AdminPage() {
         </form>
       </div>
 
-      <ScoreEntry matches={matches} players={players} playersError={playersError} locale={locale} />
+      <div className="px-7 py-7">
+        <AdminNav current="score" locale={locale} />
+
+        <div className="rounded-b-xl rounded-tr-xl border border-[var(--border)] bg-[var(--surface)] p-7">
+          <ScoreEntry matches={matches} players={players} playersError={playersError} locale={locale} />
+        </div>
+      </div>
     </div>
   );
 }

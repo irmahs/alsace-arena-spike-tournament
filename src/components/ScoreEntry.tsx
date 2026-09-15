@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useMemo, useRef, useState, useTransition } from 'react';
+import { IconSwords, IconSkull, IconHeartHandshake, IconBomb, IconHammer } from '@tabler/icons-react';
 import { computeScore } from '@/constants/scoring';
 import { SCOREBOARD_SCAN_ENABLED } from '@/constants/flags';
 import {
@@ -59,6 +60,15 @@ const NUM_FIELDS = [
 ] as const;
 
 const BONUS_KEYS = ['bonus_fb', 'bonus_death', 'bonus_assist', 'bonus_plant', 'bonus_defuse'] as const;
+
+// Same icon set as the public leaderboard/match-detail pages, for the same bonuses.
+const BONUS_ICONS = {
+  bonus_fb: IconSwords,
+  bonus_death: IconSkull,
+  bonus_assist: IconHeartHandshake,
+  bonus_plant: IconBomb,
+  bonus_defuse: IconHammer,
+} as const;
 
 const label = 'text-[11px] font-semibold uppercase tracking-[.06em] text-[var(--text-muted)]';
 const select =
@@ -337,7 +347,7 @@ export default function ScoreEntry({
   }
 
   return (
-    <div className="mt-8 flex flex-col gap-6">
+    <div className="flex flex-col gap-6">
       {playersError ? (
         <p className="rounded-md border border-[var(--accent-33)] bg-[var(--accent-0f)] px-3 py-2 text-[12px] text-[var(--accent)]">
           {t.adminForm.playersErrorPrefix}
@@ -429,6 +439,18 @@ export default function ScoreEntry({
 
       {rows.length > 0 && (
         <>
+          <div className="flex flex-wrap gap-x-5 gap-y-2 px-3.5 py-2.5 bg-[var(--surface)] border border-[var(--border)] rounded-lg">
+            {BONUS_KEYS.map((k) => {
+              const Icon = BONUS_ICONS[k];
+              return (
+                <div key={k} className="flex items-center gap-1.5 text-[11px] text-[var(--text-muted)]">
+                  <Icon size={14} className="text-[var(--gold)]" />
+                  {bonusLabels[k]}
+                </div>
+              );
+            })}
+          </div>
+
           <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-[12px] text-[var(--text-muted)]">
             <span>{t.adminForm.rows(rows.length)}</span>
             {loadingExisting && <span className="text-[var(--gold)]">{t.adminForm.loadingExisting}</span>}
@@ -453,11 +475,14 @@ export default function ScoreEntry({
                     </th>
                   ))}
                   <th className={`${th} w-12 border-l border-[var(--border)]`}>{t.matchDetail.win}</th>
-                  {BONUS_KEYS.map((k) => (
-                    <th key={k} className={`${th} w-14`}>
-                      {bonusLabels[k]}
-                    </th>
-                  ))}
+                  {BONUS_KEYS.map((k) => {
+                    const Icon = BONUS_ICONS[k];
+                    return (
+                      <th key={k} className={`${th} w-14`} title={bonusLabels[k]}>
+                        <Icon size={13} className="mx-auto text-[var(--gold)]" />
+                      </th>
+                    );
+                  })}
                   <th className={`${th} w-14 border-l border-[var(--border)]`}>{t.adminForm.ptsHeader}</th>
                   <th className={th} />
                 </tr>
